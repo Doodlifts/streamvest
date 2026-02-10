@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Vercel
+.vercel/
+
+# Environment / secrets
+.env
+.env.local
+*.pem
+*.pkey
+
+# Flow CLI (contains private keys)
+flow.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
