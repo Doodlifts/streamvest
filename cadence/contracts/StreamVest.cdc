@@ -694,58 +694,42 @@ access(all) contract StreamVest: NonFungibleToken, ViewResolver {
     /// Convert a UFix64 to an integer string (truncates decimals).
     access(all) view fun ufix64ToIntString(_ value: UFix64): String {
         let str = value.toString()
-        // UFix64.toString() returns "123.45600000" — take chars before '.'
-        var result = ""
-        var i = 0
-        let chars = str.utf8
-        while i < chars.length {
-            let c = chars[i]
-            if c == 46 { break }  // '.'
-            result = result.concat(String.fromUTF8([c]) ?? "")
-            i = i + 1
+        // UFix64.toString() returns "123.45600000" — split and take the integer part
+        let parts = str.split(separator: ".")
+        if parts.length > 0 {
+            return parts[0]
         }
-        if result == "" { return "0" }
-        return result
+        return "0"
     }
 
     /// Convert a UFix64 to a decimal string with up to `places` decimals.
     access(all) view fun ufix64ToDecimalString(_ value: UFix64, _ places: Int): String {
         let str = value.toString()
-        let chars = str.utf8
-        var intPart  = ""
-        var decPart  = ""
-        var pastDot  = false
-        var i = 0
-        while i < chars.length {
-            let c = chars[i]
-            if c == 46 { // '.'
-                pastDot = true
-                i = i + 1
-                continue
-            }
-            if pastDot {
-                decPart = decPart.concat(String.fromUTF8([c]) ?? "")
-            } else {
-                intPart = intPart.concat(String.fromUTF8([c]) ?? "")
-            }
-            i = i + 1
-        }
-        if intPart == "" { intPart = "0" }
+        let parts = str.split(separator: ".")
 
-        // Trim or pad the decimal part.
-        var trimmed = ""
-        i = 0
-        while i < places && i < decPart.utf8.length {
-            let dc = decPart.utf8[i]
-            trimmed = trimmed.concat(String.fromUTF8([dc]) ?? "")
-            i = i + 1
+        var intPart = "0"
+        var decPart = ""
+
+        if parts.length > 0 {
+            intPart = parts[0]
         }
-        while i < places {
-            trimmed = trimmed.concat("0")
-            i = i + 1
+        if parts.length > 1 {
+            decPart = parts[1]
         }
+
+        // Trim or pad the decimal part to match the desired places
+        if decPart.length > places {
+            // Trim: take only the first 'places' characters
+            decPart = decPart.slice(from: 0, upTo: places)
+        } else {
+            // Pad with zeros
+            while decPart.length < places {
+                decPart = "\(decPart)0"
+            }
+        }
+
         if places == 0 { return intPart }
-        return intPart.concat(".").concat(trimmed)
+        return "\(intPart).\(decPart)"
     }
 
     /// Estimate scheduled-tx fees for a given duration and interval.
