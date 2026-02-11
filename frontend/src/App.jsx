@@ -1,15 +1,21 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   useFlowCurrentUser,
   useFlowQuery,
   useFlowMutate,
   useFlowTransactionStatus,
 } from '@onflow/react-sdk';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Lenis from '@studio-freight/lenis';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
+
+gsap.registerPlugin(ScrollTrigger);
 
 // ────────────────────────────────────────────────────────────
 //  Cadence Scripts & Transactions
-//  Using explicit address imports until mainnet supports
-//  the new import "ContractName" syntax (pending HCU fix).
 // ────────────────────────────────────────────────────────────
 
 const ADDRESSES = {
@@ -321,39 +327,295 @@ function toFixedCadence(val) {
 }
 
 // ────────────────────────────────────────────────────────────
-//  Components
+//  Hooks
 // ────────────────────────────────────────────────────────────
+
+function useSmoothScroll() {
+  useEffect(() => {
+    const lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+    let frameId;
+    function raf(time) {
+      lenis.raf(time);
+      frameId = requestAnimationFrame(raf);
+    }
+    frameId = requestAnimationFrame(raf);
+
+    lenis.on('scroll', ScrollTrigger.update);
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      lenis.destroy();
+      gsap.ticker.remove((time) => lenis.raf(time * 1000));
+    };
+  }, []);
+}
+
+// ────────────────────────────────────────────────────────────
+//  Three.js Components
+// ────────────────────────────────────────────────────────────
+
+function StreamParticles({ count = 800 }) {
+  const meshRef = useRef();
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  const positions = useMemo(() => {
+    const pos = [];
+    for (let i = 0; i < count; i++) {
+      const t = Math.random();
+      const x = -5 + t * 10;
+      const y = (Math.random() - 0.5) * 3;
+      const z = (Math.random() - 0.5) * 3;
+      pos.push([x, y, z, Math.random()]);
+    }
+    return pos;
+  }, [count]);
+
+  useFrame(() => {
+    if (!meshRef.current) return;
+    positions.forEach((p, i) => {
+      const t = (p[0] + 5) / 10;
+      const speed = 0.3;
+      const newX = -5 + ((t + speed * 0.0005) % 1) * 10;
+      const y = Math.sin(newX * 2) * 0.5 + p[1];
+      const z = Math.cos(newX) * 0.5 + p[2];
+
+      dummy.position.set(newX, y, z);
+      dummy.scale.setScalar(0.05 + Math.sin(newX) * 0.02);
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={meshRef} args={[new THREE.SphereGeometry(1, 8, 8), undefined, count]}>
+      <meshStandardMaterial
+        emissive="#00e1ff"
+        emissiveIntensity={0.8}
+        metalness={0.8}
+        roughness={0.1}
+      />
+    </instancedMesh>
+  );
+}
+
+function HeroVisualization() {
+  return (
+    <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+      <ambientLight intensity={0.3} />
+      <pointLight position={[5, 5, 5]} intensity={0.5} color="#00e1ff" />
+      <StreamParticles count={600} />
+      <EffectComposer>
+        <Bloom luminanceThreshold={0.2} intensity={1.5} />
+      </EffectComposer>
+    </Canvas>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+//  UI Components
+// ────────────────────────────────────────────────────────────
+
+function CustomCursor() {
+  const dotRef = useRef(null);
+  const ringRef = useRef(null);
+
+  useEffect(() => {
+    const isFine = window.matchMedia('(pointer: fine)').matches;
+    if (!isFine) return;
+
+    const dotPos = { x: 0, y: 0 };
+    const ringPos = { x: 0, y: 0 };
+    const dotQuick = gsap.quickTo(dotRef.current, { left: 0, top: 0 }, { duration: 0.1 });
+    const ringQuick = gsap.quickTo(ringRef.current, { left: 0, top: 0 }, { duration: 0.3 });
+
+    const handleMouseMove = (e) => {
+      dotPos.x = e.clientX;
+      dotPos.y = e.clientY;
+      ringPos.x = e.clientX;
+      ringPos.y = e.clientY;
+
+      dotQuick({ left: dotPos.x - 4, top: dotPos.y - 4 });
+      ringQuick({ left: ringPos.x - 12, top: ringPos.y - 12 });
+
+      const magnetic = document.querySelectorAll('.magnetic');
+      magnetic.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const dx = Math.abs(e.clientX - cx);
+        const dy = Math.abs(e.clientY - cy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 50) {
+          if (ringRef.current) {
+            gsap.to(ringRef.current, { scale: 1.5, duration: 0.3 });
+          }
+        } else {
+          if (ringRef.current) {
+            gsap.to(ringRef.current, { scale: 1, duration: 0.3 });
+          }
+        }
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  return (
+    <>
+      <div ref={dotRef} className="cursor-dot" />
+      <div ref={ringRef} className="cursor-ring" />
+    </>
+  );
+}
+
+function GrainOverlay() {
+  return <div className="grain-overlay" />;
+}
+
+function ScrollIndicator() {
+  return (
+    <div className="scroll-indicator">
+      <div className="scroll-indicator-line" />
+      <span className="scroll-indicator-text">Scroll</span>
+    </div>
+  );
+}
+
+function TextReveal({ children, tag = 'span', delay = 0, className = '' }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const text = ref.current.textContent;
+    const chars = text.split('');
+    ref.current.innerHTML = chars.map((char, i) =>
+      `<span class="char" style="display:inline-block;opacity:0;transform:translateY(50px)">${char === ' ' ? '&nbsp;' : char}</span>`
+    ).join('');
+
+    const charElements = ref.current.querySelectorAll('.char');
+    gsap.from(charElements, {
+      opacity: 0,
+      y: 50,
+      stagger: 0.03,
+      delay,
+      duration: 0.6,
+      ease: 'power2.out',
+    });
+  }, [delay]);
+
+  const Tag = tag;
+  return <Tag ref={ref} className={`text-reveal ${className}`}>{children}</Tag>;
+}
+
+function MagneticButton({ children, onClick, className = '', disabled = false }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current || disabled) return;
+
+    const handleMouseMove = (e) => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) * 0.2;
+      const dy = (e.clientY - cy) * 0.2;
+
+      gsap.to(ref.current, {
+        x: dx,
+        y: dy,
+        duration: 0.5,
+        overwrite: 'auto',
+      });
+    };
+
+    const handleMouseLeave = () => {
+      if (!ref.current) return;
+      gsap.to(ref.current, { x: 0, y: 0, duration: 0.5 });
+    };
+
+    ref.current.addEventListener('mousemove', handleMouseMove);
+    ref.current.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      if (ref.current) {
+        ref.current.removeEventListener('mousemove', handleMouseMove);
+        ref.current.removeEventListener('mouseleave', handleMouseLeave);
+      }
+    };
+  }, [disabled]);
+
+  return (
+    <button
+      ref={ref}
+      className={`magnetic-button magnetic ${className}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ArchitectureItem({ title, detail, index }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={`architecture-item ${open ? 'open' : ''}`}>
+      <button
+        className="architecture-item-header"
+        onClick={() => setOpen(!open)}
+      >
+        <span className="architecture-item-index">{String(index + 1).padStart(2, '0')}</span>
+        <span className="architecture-item-title">{title}</span>
+        <span className="architecture-item-toggle">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div className="architecture-item-detail">
+          <p>{detail}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ProgressRing({ percent, status, size = 56 }) {
   const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
+  const offset = circumference - (Math.min(percent, 100) / 100) * circumference;
   const cls = status?.toLowerCase();
 
   return (
-    <svg width={size} height={size} className="progress-ring-svg">
-      <circle
-        className="progress-ring-bg"
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        strokeWidth={strokeWidth}
-      />
-      <circle
-        className={`progress-ring-fill ${cls}`}
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        strokeWidth={strokeWidth}
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-      />
-    </svg>
+    <div className="card-ring">
+      <svg width={size} height={size} className="progress-ring-svg">
+        <circle
+          className="progress-ring-bg"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+        />
+        <circle
+          className={`progress-ring-fill ${cls}`}
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+        />
+      </svg>
+    </div>
   );
 }
 
 function StreamCard({ stream, onClick }) {
+  const cardRef = useRef(null);
   const pct = parseFloat(stream.totalAmount) > 0
     ? (parseFloat(stream.totalStreamed) / parseFloat(stream.totalAmount)) * 100
     : 0;
@@ -362,13 +624,34 @@ function StreamCard({ stream, onClick }) {
     ? (stream._stuck ? 'STUCK' : 'COMPLETED')
     : stream.status;
   const cls = displayStatus?.toLowerCase();
-  const isCompleted = isDone;
+
+  const handleMouseMove = (e) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = (y - centerY) / centerY * -8;
+    const rotateY = (x - centerX) / centerX * 8;
+    cardRef.current.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
+  };
+
+  const handleMouseLeave = () => {
+    if (cardRef.current) {
+      cardRef.current.style.transform = 'perspective(800px) rotateX(0) rotateY(0) translateZ(0)';
+    }
+  };
 
   return (
     <div
-      className={`stream-card ${isCompleted ? 'completed-card' : ''}`}
+      ref={cardRef}
+      className={`stream-card ${isDone ? 'completed-card' : ''}`}
       onClick={onClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
+      <div className="card-specular" />
       <div className="card-top">
         <span className="card-id">#{stream.id}</span>
         <span className={`card-status-badge ${cls}`}>
@@ -377,22 +660,18 @@ function StreamCard({ stream, onClick }) {
         </span>
       </div>
       <div className="card-body">
-        <div className="card-ring">
-          <ProgressRing percent={pct} status={stream.status} />
-        </div>
+        <ProgressRing percent={pct} status={displayStatus} />
         <div className="card-info">
           <div className="card-amount">
             {formatFlow(stream.totalAmount, 2)}
             <span className="card-amount-suffix">FLOW</span>
           </div>
-          <div className="card-dest">
-            {formatAddr(stream.destinationAddress)}
-          </div>
+          <div className="card-dest">{formatAddr(stream.destinationAddress)}</div>
           <div className="card-progress-row">
             <div className="card-progress-bar">
-              <div className={`card-progress-fill ${cls}`} style={{ width: `${pct}%` }} />
+              <div className={`card-progress-fill ${cls}`} style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>
-            <span className="card-progress-pct">{pct.toFixed(0)}%</span>
+            <span className="card-progress-pct">{Math.min(pct, 100).toFixed(0)}%</span>
           </div>
         </div>
       </div>
@@ -413,20 +692,20 @@ function Header({ user, view, setView, authenticate, unauthenticate }) {
   return (
     <header className="header">
       <div className="header-left">
-        <div className="logo">
+        <div className="logo magnetic">
           <div className="logo-mark"><LogoMark /></div>
-          StreamVest
+          <span className="logo-text">StreamVest</span>
         </div>
         {user?.addr && (
           <nav className="nav">
             <button
-              className={`nav-item ${view === 'dashboard' ? 'active' : ''}`}
+              className={`nav-item magnetic ${view === 'dashboard' ? 'active' : ''}`}
               onClick={() => setView('dashboard')}
             >
               Dashboard
             </button>
             <button
-              className={`nav-item ${view === 'create' ? 'active' : ''}`}
+              className={`nav-item magnetic ${view === 'create' ? 'active' : ''}`}
               onClick={() => setView('create')}
             >
               Create
@@ -435,12 +714,12 @@ function Header({ user, view, setView, authenticate, unauthenticate }) {
         )}
       </div>
       {user?.addr ? (
-        <button className="wallet-btn" onClick={unauthenticate} title="Disconnect wallet">
+        <button className="wallet-btn magnetic" onClick={unauthenticate} title="Disconnect">
           <span className="wallet-dot" />
           {formatAddr(user.addr)}
         </button>
       ) : (
-        <button className="wallet-btn wallet-btn-connect" onClick={authenticate}>
+        <button className="wallet-btn wallet-btn-connect magnetic" onClick={authenticate}>
           Connect Wallet
         </button>
       )}
@@ -455,15 +734,11 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
     query: { enabled: !!user?.addr, refetchInterval: 15000 },
   });
 
-  // Split and sort: active by most remaining first, completed by amount
-  // A stream is "done" if: not active (isActive === false), status !== STREAMING,
-  // or percentage >= 99.5 (accounts for rounding — shows as 100% in UI)
   const { activeStreams, completedStreams } = useMemo(() => {
     const all = (streams || []).map(s => {
       const amt = parseFloat(s.totalAmount || 0);
       const streamed = parseFloat(s.totalStreamed || 0);
       const pct = amt > 0 ? (streamed / amt) * 100 : 0;
-      // Use the contract's isActive flag as primary signal, with pct as fallback
       const isDone = s.isActive === false || s.status !== 'STREAMING' || pct >= 99.5;
       const isStuck = isDone && s.status === 'STREAMING' && pct < 99.5;
       return { ...s, _pct: pct, _stuck: isStuck, _done: isDone };
@@ -502,18 +777,18 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
   return (
     <>
       <div className="stats-row">
-        <div className="stat">
+        <div className="stat-card">
           <div className="stat-label">Total Streams</div>
           <div className="stat-value">{stats.total}</div>
         </div>
-        <div className="stat">
+        <div className="stat-card">
           <div className="stat-label">Total Locked</div>
           <div className="stat-value">
             {formatFlow(stats.locked, 2)}
             <span className="stat-suffix">FLOW</span>
           </div>
         </div>
-        <div className="stat">
+        <div className="stat-card">
           <div className="stat-label">Active</div>
           <div className="stat-value">{stats.active}</div>
         </div>
@@ -523,13 +798,13 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
         <div className="empty">
           <div className="empty-title">No streams yet</div>
           <div className="empty-desc">Create your first streaming vest to get started.</div>
-          <button className="empty-btn" onClick={onNavigateCreate}>+ Create Stream</button>
+          <button className="empty-btn magnetic" onClick={onNavigateCreate}>+ Create Stream</button>
         </div>
       ) : (
         <>
           {activeStreams.length > 0 && (
             <>
-              <div className="section-header">
+              <div className="section-label">
                 <span className="section-title">Active Streams</span>
                 <span className="section-count">{activeStreams.length}</span>
               </div>
@@ -547,7 +822,7 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
 
           {completedStreams.length > 0 && (
             <div className={activeStreams.length > 0 ? 'section-divider' : ''}>
-              <div className="section-header">
+              <div className="section-label">
                 <span className="section-title">Completed</span>
                 <span className="section-count">{completedStreams.length}</span>
               </div>
@@ -602,7 +877,7 @@ function StreamDetailView({ user, streamId, onBack }) {
 
   return (
     <>
-      <button className="detail-back" onClick={onBack}>&larr; Back to streams</button>
+      <button className="detail-back magnetic" onClick={onBack}>&larr; Back to streams</button>
 
       <div className="detail-header">
         <span className="detail-title">Stream #{detail.id}</span>
@@ -614,10 +889,7 @@ function StreamDetailView({ user, streamId, onBack }) {
 
       {svg && (
         <div className="nft-svg-container">
-          <div
-            className="nft-svg"
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+          <div className="nft-svg" dangerouslySetInnerHTML={{ __html: svg }} />
         </div>
       )}
 
@@ -709,7 +981,6 @@ function CreateStream({ user, onSuccess }) {
   const isErrored = transactionStatus?.errorMessage;
   const isBusy = isPending || (txId && !isSealed && !isErrored);
 
-  // Navigate to dashboard after sealing
   React.useEffect(() => {
     if (isSealed) {
       const timer = setTimeout(() => onSuccess(), 3000);
@@ -776,7 +1047,7 @@ function CreateStream({ user, onSuccess }) {
           {DURATION_PRESETS.map((p, i) => (
             <button
               key={p.label}
-              className={`preset-btn ${durIdx === i ? 'selected' : ''}`}
+              className={`preset-btn magnetic ${durIdx === i ? 'selected' : ''}`}
               onClick={() => setDurIdx(i)}
             >
               {p.label}
@@ -791,7 +1062,7 @@ function CreateStream({ user, onSuccess }) {
           {INTERVAL_PRESETS.map((p, i) => (
             <button
               key={p.label}
-              className={`preset-btn ${intIdx === i ? 'selected' : ''}`}
+              className={`preset-btn magnetic ${intIdx === i ? 'selected' : ''}`}
               onClick={() => setIntIdx(i)}
             >
               {p.label}
@@ -810,7 +1081,7 @@ function CreateStream({ user, onSuccess }) {
           <div className="cost-row">
             <div>
               <div className="cost-label">Scheduling fees</div>
-              <div className="cost-detail">{numTriggers.toLocaleString()} triggers &times; {FEE_PER_TRIGGER} FLOW</div>
+              <div className="cost-detail">{numTriggers.toLocaleString()} triggers × {FEE_PER_TRIGGER} FLOW</div>
             </div>
             <span className="cost-value">{formatFlow(totalFees)} FLOW</span>
           </div>
@@ -828,13 +1099,13 @@ function CreateStream({ user, onSuccess }) {
         </>
       )}
 
-      <button
+      <MagneticButton
         className="submit-btn"
         disabled={!isValid || isBusy}
         onClick={handleSubmit}
       >
         {statusLabel}
-      </button>
+      </MagneticButton>
 
       {isSealed && (
         <div className="tx-status tx-success">
@@ -857,45 +1128,125 @@ function CreateStream({ user, onSuccess }) {
 }
 
 function LandingPage({ onConnect }) {
+  useSmoothScroll();
+
   return (
     <div className="landing">
-      <h1 className="landing-title">
-        Streaming vests<br />
-        <span className="landing-accent">on Flow</span>
-      </h1>
-      <p className="landing-subtitle">
-        Lock tokens into NFTs that automatically stream to any address.
-        No intermediaries, no manual claims. Fully autonomous, fully on-chain.
-      </p>
-      <button className="landing-connect" onClick={onConnect}>
-        Connect Wallet
-      </button>
+      <section className="hero-section">
+        <div className="hero-content">
+          <TextReveal tag="h1" className="hero-title">
+            Streaming
+          </TextReveal>
+          <TextReveal tag="h1" className="hero-title hero-title-accent" delay={0.3}>
+            Vests
+          </TextReveal>
+          <p className="hero-subtitle">
+            Mint your vesting schedule as a sovereign digital contract.
+            Tokens flow like clockwork, governed by immutable Flow runtime,
+            not human intermediaries.
+          </p>
+          <MagneticButton className="hero-cta" onClick={onConnect}>
+            Connect Wallet
+          </MagneticButton>
+        </div>
+        <div className="hero-canvas">
+          <ErrorBoundary fallback={<div className="hero-fallback" />}>
+            <HeroVisualization />
+          </ErrorBoundary>
+        </div>
+        <ScrollIndicator />
+      </section>
 
-      <div className="landing-features">
-        <div>
-          <div className="feature-number">01</div>
-          <div className="feature-title">Lock & Schedule</div>
-          <div className="feature-desc">
-            Deposit FLOW with a vesting schedule. An NFT is minted as your proof of stream.
+      <section className="mechanics-section">
+        <h2 className="section-heading">How It Works</h2>
+        <div className="mechanics-grid">
+          <div className="mechanic-card">
+            <span className="mechanic-number">01</span>
+            <h3 className="mechanic-title">Initialize Stream</h3>
+            <p className="mechanic-desc">
+              Deposit FLOW. Define cadence. The protocol handles the rest.
+            </p>
+          </div>
+          <div className="mechanic-card">
+            <span className="mechanic-number">02</span>
+            <h3 className="mechanic-title">Autonomous Distribution</h3>
+            <p className="mechanic-desc">
+              Every interval, micro-transactions execute with atomic precision.
+              No gas wars. No missed claims.
+            </p>
+          </div>
+          <div className="mechanic-card">
+            <span className="mechanic-number">03</span>
+            <h3 className="mechanic-title">Sovereign Tracking</h3>
+            <p className="mechanic-desc">
+              Monitor progress in real-time. Every delivery is transparent,
+              verifiable, and immutable.
+            </p>
           </div>
         </div>
-        <div>
-          <div className="feature-number">02</div>
-          <div className="feature-title">Auto-Stream</div>
-          <div className="feature-desc">
-            Tokens are delivered automatically at your chosen interval via Flow's native scheduler.
+      </section>
+
+      <section className="architecture-section">
+        <h2 className="section-heading">Under the Hood</h2>
+        <div className="architecture-list">
+          {[
+            { title: 'NFT-Based Streams', detail: 'Each vesting schedule is a unique NFT with embedded state, progress tracking, and on-chain SVG visualization.' },
+            { title: 'Flow Transaction Scheduler', detail: 'Leverages Flow\'s native FlowTransactionScheduler for autonomous, gas-efficient stream execution without external keepers.' },
+            { title: 'Atomic Delivery', detail: 'Token transfers execute as atomic on-chain transactions. No partial states, no race conditions, no manual intervention.' },
+            { title: 'Composable Primitive', detail: 'StreamVest NFTs implement MetadataViews and standard interfaces, making them composable with any Flow ecosystem tool.' },
+          ].map((item, i) => (
+            <ArchitectureItem key={i} title={item.title} detail={item.detail} index={i} />
+          ))}
+        </div>
+      </section>
+
+      <section className="footer-section">
+        <div className="footer-cta-container">
+          <h2 className="footer-cta-text">
+            <span className="footer-cta-gradient">Enter the Stream</span>
+          </h2>
+          <MagneticButton className="footer-cta-btn" onClick={onConnect}>
+            Connect Wallet
+          </MagneticButton>
+        </div>
+        <div className="footer-meta">
+          <div className="footer-contract">
+            <span className="footer-contract-label">Contract</span>
+            <button
+              className="footer-contract-addr magnetic"
+              onClick={() => navigator.clipboard.writeText('0x5ec90e3dcf0067c4')}
+            >
+              0x5ec90e3dcf0067c4
+              <span className="copy-icon">⧉</span>
+            </button>
+          </div>
+          <div className="footer-links">
+            <a href="https://github.com/Doodlifts/streamvest" target="_blank" rel="noopener noreferrer" className="magnetic">GitHub</a>
+            <a href="https://www.flowscan.io/account/0x5ec90e3dcf0067c4" target="_blank" rel="noopener noreferrer" className="magnetic">FlowScan</a>
           </div>
         </div>
-        <div>
-          <div className="feature-number">03</div>
-          <div className="feature-title">Track On-Chain</div>
-          <div className="feature-desc">
-            Monitor progress in real-time. Every delivery is transparent and verifiable.
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   );
+}
+
+function ErrorBoundary({ children, fallback }) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const handleError = () => setHasError(true);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+
+  if (hasError) return fallback;
+
+  try {
+    return children;
+  } catch {
+    setHasError(true);
+    return fallback;
+  }
 }
 
 // ────────────────────────────────────────────────────────────
@@ -925,6 +1276,8 @@ export default function App() {
 
   return (
     <div className="app">
+      <GrainOverlay />
+      <CustomCursor />
       <Header
         user={user}
         view={view}
@@ -932,7 +1285,7 @@ export default function App() {
         authenticate={authenticate}
         unauthenticate={unauthenticate}
       />
-      <main className="main">
+      <main className={`main ${!isConnected ? 'main-landing' : ''}`}>
         {!isConnected ? (
           <LandingPage onConnect={authenticate} />
         ) : view === 'dashboard' ? (
