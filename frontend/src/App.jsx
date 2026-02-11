@@ -1205,7 +1205,7 @@ function LandingPage({ onConnect }) {
                     <path d="M2 12h40m0 0l-7-7m7 7l-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <TextReveal tag="span" className="hero-word hero-word-accent" delay={0.3}>Streaming</TextReveal>
+                <span className="hero-word hero-word-accent hero-streaming-reveal">Streaming</span>
               </span>
             </h1>
 
