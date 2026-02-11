@@ -152,6 +152,141 @@ body::after {
 }
 
 /* ============================================================================
+   PRELOADER
+   ============================================================================ */
+
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: var(--void-black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.preloader-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.preloader-brand {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.preloader-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.preloader-logo-mark {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(0, 225, 255, 0.15), rgba(123, 97, 255, 0.15));
+  border-radius: 14px;
+  border: 1px solid rgba(0, 225, 255, 0.2);
+  animation: preloaderPulse 2s ease-in-out infinite;
+}
+
+@keyframes preloaderPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 225, 255, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(0, 225, 255, 0.25), 0 0 80px rgba(123, 97, 255, 0.1);
+  }
+}
+
+.preloader-logo-text {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+.preloader-status {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: rgba(0, 225, 255, 0.5);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.preloader-status-dots {
+  animation: preloaderDots 1.5s steps(4, end) infinite;
+  overflow: hidden;
+  display: inline-block;
+  width: 1.5em;
+  vertical-align: bottom;
+}
+
+@keyframes preloaderDots {
+  0% { width: 0; }
+  25% { width: 0.5em; }
+  50% { width: 1em; }
+  75% { width: 1.5em; }
+  100% { width: 0; }
+}
+
+.preloader-percent {
+  font-family: var(--font-mono);
+  font-size: clamp(3rem, 8vw, 6rem);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--flow-cyan), var(--stream-violet));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0.15;
+  letter-spacing: -0.03em;
+  margin-top: 1rem;
+}
+
+.preloader-progress-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.preloader-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--flow-cyan), var(--stream-violet));
+  transition: width 0.1s linear;
+  box-shadow: 0 0 10px rgba(0, 225, 255, 0.5), 0 0 30px rgba(0, 225, 255, 0.2);
+}
+
+/* App loading state - prevent scroll */
+.app-loading {
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* ============================================================================
    CUSTOM CURSOR
    ============================================================================ */
 

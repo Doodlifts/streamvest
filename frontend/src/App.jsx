@@ -1423,6 +1423,302 @@ function LandingPage({ onConnect }) {
   );
 }
 
+function Preloader({ onComplete }) {
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null);
+  const progressRef = useRef(null);
+  const percentRef = useRef(null);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'exiting' | 'done'
+
+  // Canvas animation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    let w, h, dpr;
+    const resize = () => {
+      dpr = window.devicePixelRatio || 1;
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Droplet class
+    const droplets = [];
+    const ripples = [];
+    const waterLevel = h * 0.72;
+    let gravityMultiplier = 1;
+
+    class Droplet {
+      constructor() {
+        this.reset();
+      }
+      reset() {
+        this.x = Math.random() * w;
+        this.y = -20 - Math.random() * 100;
+        this.radius = 2 + Math.random() * 4;
+        this.speed = 1 + Math.random() * 2;
+        this.drift = (Math.random() - 0.5) * 0.3;
+        this.opacity = 0.4 + Math.random() * 0.6;
+        this.glow = 10 + Math.random() * 20;
+      }
+      update() {
+        this.speed += 0.05 * gravityMultiplier;
+        this.y += this.speed;
+        this.x += this.drift;
+        if (this.y > waterLevel) {
+          ripples.push(new Ripple(this.x, waterLevel, this.radius));
+          this.reset();
+        }
+      }
+      draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        // Glow
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.glow);
+        gradient.addColorStop(0, 'rgba(0, 225, 255, 0.3)');
+        gradient.addColorStop(1, 'rgba(0, 225, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(this.x - this.glow, this.y - this.glow, this.glow * 2, this.glow * 2);
+        // Droplet body
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 225, 255, ${this.opacity})`;
+        ctx.fill();
+        // Highlight
+        ctx.beginPath();
+        ctx.arc(this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    class Ripple {
+      constructor(x, y, initialRadius) {
+        this.x = x;
+        this.y = y;
+        this.radius = initialRadius;
+        this.maxRadius = 30 + initialRadius * 10;
+        this.opacity = 0.6;
+        this.lineWidth = 1.5;
+      }
+      update() {
+        this.radius += 1.5;
+        this.opacity -= 0.01;
+        this.lineWidth = Math.max(0.2, this.lineWidth - 0.02);
+      }
+      draw(ctx) {
+        if (this.opacity <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.opacity;
+        ctx.strokeStyle = '#00e1ff';
+        ctx.lineWidth = this.lineWidth;
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y, this.radius, this.radius * 0.3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+      get isDead() {
+        return this.opacity <= 0 || this.radius > this.maxRadius;
+      }
+    }
+
+    // Initialize droplets
+    for (let i = 0; i < 40; i++) {
+      const d = new Droplet();
+      d.y = Math.random() * h * 0.7; // spread them out initially
+      droplets.push(d);
+    }
+
+    // Water surface wave
+    let time = 0;
+
+    function drawWaterSurface() {
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      ctx.strokeStyle = '#00e1ff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        const y = waterLevel + Math.sin(x * 0.02 + time) * 3 + Math.sin(x * 0.005 + time * 0.5) * 5;
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    let animId;
+    function animate() {
+      ctx.clearRect(0, 0, w, h);
+      time += 0.02;
+
+      // Spawn new droplets periodically
+      if (Math.random() < 0.15) {
+        droplets.push(new Droplet());
+      }
+
+      // Update and draw droplets
+      for (let i = droplets.length - 1; i >= 0; i--) {
+        droplets[i].update();
+        droplets[i].draw(ctx);
+      }
+      // Cap droplet count
+      while (droplets.length > 60) droplets.shift();
+
+      // Draw water surface
+      drawWaterSurface();
+
+      // Update and draw ripples
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        ripples[i].update();
+        ripples[i].draw(ctx);
+        if (ripples[i].isDead) ripples.splice(i, 1);
+      }
+
+      animId = requestAnimationFrame(animate);
+    }
+    animate();
+
+    // Expose gravity multiplier for exit animation
+    canvasRef.current._setGravity = (mult) => { gravityMultiplier = mult; };
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  // Loading progress & exit
+  useEffect(() => {
+    let fontsLoaded = false;
+    let windowLoaded = false;
+    let progress = 0;
+    const startTime = Date.now();
+    const MIN_DISPLAY = 2500; // minimum 2.5s
+
+    document.fonts.ready.then(() => { fontsLoaded = true; });
+
+    const onLoad = () => { windowLoaded = true; };
+    if (document.readyState === 'complete') windowLoaded = true;
+    else window.addEventListener('load', onLoad);
+
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+
+      // Simulated progress curve
+      if (elapsed < 500) {
+        progress = Math.min(30, (elapsed / 500) * 30);
+      } else if (elapsed < 1500) {
+        progress = 30 + ((elapsed - 500) / 1000) * 40;
+      } else if (elapsed < 2000) {
+        progress = 70 + ((elapsed - 1500) / 500) * 20;
+      } else {
+        progress = Math.min(progress + 0.5, 95);
+      }
+
+      // Final jump when ready
+      if (fontsLoaded && windowLoaded && elapsed >= MIN_DISPLAY) {
+        progress = 100;
+      }
+
+      // Update DOM directly for performance
+      if (progressRef.current) {
+        progressRef.current.style.width = progress + '%';
+      }
+      if (percentRef.current) {
+        percentRef.current.textContent = Math.floor(progress) + '%';
+      }
+
+      if (progress >= 100) {
+        clearInterval(interval);
+        // Trigger exit animation
+        triggerExit();
+      }
+    }, 30);
+
+    function triggerExit() {
+      setStatus('exiting');
+
+      // Accelerate droplets
+      if (canvasRef.current?._setGravity) {
+        canvasRef.current._setGravity(5);
+      }
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          setStatus('done');
+          if (onComplete) onComplete();
+        }
+      });
+
+      tl.to('.preloader-brand', {
+        scale: 1.1,
+        opacity: 0,
+        duration: 0.6,
+        ease: 'power2.in',
+      })
+      .to('.preloader-progress-wrap', {
+        opacity: 0,
+        duration: 0.3,
+        ease: 'power2.in',
+      }, '<')
+      .to(containerRef.current, {
+        clipPath: 'circle(0% at 50% 50%)',
+        duration: 1,
+        ease: 'power3.inOut',
+      }, '-=0.2');
+    }
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('load', onLoad);
+    };
+  }, [onComplete]);
+
+  if (status === 'done') return null;
+
+  return (
+    <div ref={containerRef} className="preloader" style={{ clipPath: 'circle(150% at 50% 50%)' }}>
+      <canvas ref={canvasRef} className="preloader-canvas" />
+
+      <div className="preloader-brand">
+        <div className="preloader-logo">
+          <div className="preloader-logo-mark">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <path d="M16 4 L24 12 L24 20 L16 28 L8 20 L8 12 Z" fill="url(#preloaderGrad)" />
+              <defs>
+                <linearGradient id="preloaderGrad" x1="8" y1="4" x2="24" y2="28">
+                  <stop offset="0%" stopColor="#00e1ff" />
+                  <stop offset="100%" stopColor="#7b61ff" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <span className="preloader-logo-text">StreamVest</span>
+        </div>
+        <div className="preloader-status">
+          <span className="preloader-status-text">Initializing stream protocol</span>
+          <span className="preloader-status-dots">...</span>
+        </div>
+        <div ref={percentRef} className="preloader-percent">0%</div>
+      </div>
+
+      <div className="preloader-progress-wrap">
+        <div ref={progressRef} className="preloader-progress-bar" />
+      </div>
+    </div>
+  );
+}
+
 function ErrorBoundary({ children, fallback }) {
   const [hasError, setHasError] = useState(false);
 
@@ -1450,6 +1746,7 @@ export default function App() {
   const { user, authenticate, unauthenticate } = useFlowCurrentUser();
   const [view, setView] = useState('dashboard');
   const [selectedStream, setSelectedStream] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const isConnected = user?.addr;
 
@@ -1468,7 +1765,8 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app ${loading ? 'app-loading' : ''}`}>
+      {loading && <Preloader onComplete={() => setLoading(false)} />}
       <GrainOverlay />
       <CustomCursor />
       <Header
