@@ -14,8 +14,8 @@ build/
 *.pem
 *.pkey
 
-# Flow CLI (contains private keys)
-flow.json
+# Flow CLI — flow.json is committed with SCRUBBED private keys
+# Never commit real private keys!
 
 # OS files
 .DS_Store
