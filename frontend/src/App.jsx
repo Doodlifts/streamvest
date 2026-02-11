@@ -1198,11 +1198,14 @@ function LandingPage({ onConnect }) {
         <div className="hero-grid">
           <div className="hero-text">
             <h1 className="hero-headline">
-              <span className="hero-line">
-                <TextReveal tag="span" className="hero-word">Streaming</TextReveal>
-              </span>
-              <span className="hero-line">
-                <TextReveal tag="span" className="hero-word hero-word-accent" delay={0.15}>Vests</TextReveal>
+              <span className="hero-line hero-transform-line">
+                <span className="hero-struck">Vesting</span>
+                <span className="hero-arrow">
+                  <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
+                    <path d="M2 12h40m0 0l-7-7m7 7l-7 7" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <TextReveal tag="span" className="hero-word hero-word-accent" delay={0.3}>Streaming</TextReveal>
               </span>
             </h1>
 

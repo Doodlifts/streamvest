@@ -804,12 +804,75 @@ a:hover {
   overflow: hidden;
 }
 
+.hero-transform-line {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.hero-struck {
+  position: relative;
+  color: rgba(255, 255, 255, 0.25);
+  text-decoration: none;
+}
+
+.hero-struck::after {
+  content: '';
+  position: absolute;
+  left: -4%;
+  right: -4%;
+  top: 52%;
+  height: 3px;
+  background: rgba(255, 68, 68, 0.7);
+  transform: rotate(-2deg);
+  border-radius: 2px;
+  animation: strikeIn 0.6s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes strikeIn {
+  from {
+    transform: scaleX(0) rotate(-2deg);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1) rotate(-2deg);
+    transform-origin: left;
+  }
+}
+
+.hero-arrow {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.4);
+  animation: arrowSlide 0.5s 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  flex-shrink: 0;
+}
+
+.hero-arrow svg {
+  width: clamp(32px, 4vw, 48px);
+  height: auto;
+}
+
+@keyframes arrowSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .hero-word {
-  display: block;
+  display: inline-block;
   color: var(--mist-white);
 }
 
 .hero-word-accent {
+  display: inline-block;
   background: var(--stream-flow);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
