@@ -632,9 +632,9 @@ function StreamCard({ stream, onClick }) {
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    const rotateX = (y - centerY) / centerY * -8;
-    const rotateY = (x - centerX) / centerX * 8;
-    cardRef.current.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(10px)`;
+    const rotateX = (y - centerY) / centerY * -6;
+    const rotateY = (x - centerX) / centerX * 6;
+    cardRef.current.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(8px)`;
   };
 
   const handleMouseLeave = () => {
@@ -652,28 +652,72 @@ function StreamCard({ stream, onClick }) {
       onMouseLeave={handleMouseLeave}
     >
       <div className="card-specular" />
+      <div className="card-corner-accent" />
+
+      {/* Header: Token icon + ID + Status */}
       <div className="card-top">
-        <span className="card-id">#{stream.id}</span>
+        <div className="card-token-row">
+          <div className="card-token-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="10" fill="#00ef8b" opacity="0.15" />
+              <path d="M10 5v7m0 0l-3-2.5m3 2.5l3-2.5" stroke="#00ef8b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="10" cy="15" r="1" fill="#00ef8b" />
+            </svg>
+          </div>
+          <span className="card-id">Stream #{stream.id}</span>
+        </div>
         <span className={`card-status-badge ${cls}`}>
           <span className="badge-dot" />
           {displayStatus}
         </span>
       </div>
-      <div className="card-body">
-        <ProgressRing percent={pct} status={displayStatus} />
-        <div className="card-info">
-          <div className="card-amount">
+
+      {/* Stats grid */}
+      <div className="card-stats-grid">
+        <div className="card-stat">
+          <span className="card-stat-label">Amount</span>
+          <span className="card-stat-value card-amount">
             {formatFlow(stream.totalAmount, 2)}
             <span className="card-amount-suffix">FLOW</span>
-          </div>
-          <div className="card-dest">{formatAddr(stream.destinationAddress)}</div>
-          <div className="card-progress-row">
-            <div className="card-progress-bar">
-              <div className={`card-progress-fill ${cls}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-            </div>
-            <span className="card-progress-pct">{Math.min(pct, 100).toFixed(0)}%</span>
+          </span>
+        </div>
+        <div className="card-stat">
+          <span className="card-stat-label">Streamed</span>
+          <span className="card-stat-value">
+            {formatFlow(stream.totalStreamed, 2)}
+            <span className="card-amount-suffix">FLOW</span>
+          </span>
+        </div>
+        <div className="card-stat card-stat-full">
+          <span className="card-stat-label">Recipient</span>
+          <span className="card-stat-value card-dest">{formatAddr(stream.destinationAddress)}</span>
+        </div>
+      </div>
+
+      {/* Liquid progress bar */}
+      <div className="card-progress-section">
+        <div className="card-progress-header">
+          <span className="card-progress-label">Progress</span>
+          <span className="card-progress-pct">{Math.min(pct, 100).toFixed(0)}%</span>
+        </div>
+        <div className="card-liquid-bar">
+          <div
+            className={`card-liquid-fill ${cls}`}
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          >
+            <div className="card-liquid-shimmer" />
           </div>
         </div>
+      </div>
+
+      {/* View Stream button */}
+      <div className="card-footer">
+        <span className="card-view-btn">
+          View Stream
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
       </div>
     </div>
   );
@@ -803,7 +847,7 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
       ) : (
         <>
           {activeStreams.length > 0 && (
-            <>
+            <div className="streams-container">
               <div className="section-label">
                 <span className="section-title">Active Streams</span>
                 <span className="section-count">{activeStreams.length}</span>
@@ -817,11 +861,11 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
                   />
                 ))}
               </div>
-            </>
+            </div>
           )}
 
           {completedStreams.length > 0 && (
-            <div className={activeStreams.length > 0 ? 'section-divider' : ''}>
+            <div className={`streams-container ${activeStreams.length > 0 ? 'section-divider' : ''}`}>
               <div className="section-label">
                 <span className="section-title">Completed</span>
                 <span className="section-count">{completedStreams.length}</span>
