@@ -1308,9 +1308,35 @@ function LandingPage({ onConnect }) {
           </div>
 
           <div className="hero-visual">
-            <ErrorBoundary fallback={<div className="hero-fallback" />}>
-              <HeroVisualization />
-            </ErrorBoundary>
+            <div className="hero-visual-container">
+              <div className="hero-orb hero-orb-1" />
+              <div className="hero-orb hero-orb-2" />
+              <div className="hero-orb hero-orb-3" />
+              <div className="hero-visual-card">
+                <div className="hero-card-header">
+                  <div className="hero-card-dot" />
+                  <div className="hero-card-dot" />
+                  <div className="hero-card-dot" />
+                </div>
+                <div className="hero-card-body">
+                  <div className="hero-card-stream">
+                    <div className="hero-stream-bar" />
+                    <div className="hero-stream-bar hero-stream-bar-2" />
+                    <div className="hero-stream-bar hero-stream-bar-3" />
+                  </div>
+                  <div className="hero-card-stats">
+                    <div className="hero-stat-block">
+                      <span className="hero-stat-label">Streaming</span>
+                      <span className="hero-stat-value">1,250.00</span>
+                    </div>
+                    <div className="hero-stat-block">
+                      <span className="hero-stat-label">Delivered</span>
+                      <span className="hero-stat-value">847.32</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1428,9 +1454,9 @@ function Preloader({ onComplete }) {
   const containerRef = useRef(null);
   const progressRef = useRef(null);
   const percentRef = useRef(null);
-  const [status, setStatus] = useState('loading'); // 'loading' | 'exiting' | 'done'
+  const [status, setStatus] = useState('loading');
 
-  // Canvas animation
+  // Canvas animation — large cinematic water droplets
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1438,82 +1464,104 @@ function Preloader({ onComplete }) {
 
     let w, h, dpr;
     const resize = () => {
-      dpr = window.devicePixelRatio || 1;
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
       w = window.innerWidth;
       h = window.innerHeight;
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       canvas.style.width = w + 'px';
       canvas.style.height = h + 'px';
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener('resize', resize);
 
-    // Droplet class
     const droplets = [];
     const ripples = [];
-    const waterLevel = h * 0.72;
+    const waterLevel = h * 0.75;
     let gravityMultiplier = 1;
 
     class Droplet {
-      constructor() {
-        this.reset();
+      constructor(scattered) {
+        this.reset(scattered);
       }
-      reset() {
-        this.x = Math.random() * w;
-        this.y = -20 - Math.random() * 100;
-        this.radius = 2 + Math.random() * 4;
-        this.speed = 1 + Math.random() * 2;
-        this.drift = (Math.random() - 0.5) * 0.3;
-        this.opacity = 0.4 + Math.random() * 0.6;
-        this.glow = 10 + Math.random() * 20;
+      reset(scattered) {
+        this.x = w * 0.15 + Math.random() * w * 0.7;
+        this.y = scattered ? Math.random() * waterLevel * 0.6 : -30 - Math.random() * 200;
+        this.radius = 8 + Math.random() * 17;
+        this.speed = 0.3 + Math.random() * 0.8;
+        this.drift = (Math.random() - 0.5) * 0.15;
+        this.opacity = 0.5 + Math.random() * 0.5;
+        this.glowSize = this.radius * 3;
+        this.wobble = Math.random() * Math.PI * 2;
+        this.wobbleSpeed = 0.01 + Math.random() * 0.02;
       }
       update() {
-        this.speed += 0.05 * gravityMultiplier;
+        this.speed += 0.02 * gravityMultiplier;
         this.y += this.speed;
-        this.x += this.drift;
-        if (this.y > waterLevel) {
+        this.wobble += this.wobbleSpeed;
+        this.x += this.drift + Math.sin(this.wobble) * 0.3;
+        if (this.y + this.radius > waterLevel) {
           ripples.push(new Ripple(this.x, waterLevel, this.radius));
-          this.reset();
+          this.reset(false);
         }
       }
       draw(ctx) {
         ctx.save();
-        ctx.globalAlpha = this.opacity;
-        // Glow
-        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.glow);
-        gradient.addColorStop(0, 'rgba(0, 225, 255, 0.3)');
-        gradient.addColorStop(1, 'rgba(0, 225, 255, 0)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(this.x - this.glow, this.y - this.glow, this.glow * 2, this.glow * 2);
-        // Droplet body
+        // Outer glow
+        const glow = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.glowSize);
+        glow.addColorStop(0, `rgba(0, 225, 255, ${this.opacity * 0.2})`);
+        glow.addColorStop(0.5, `rgba(0, 225, 255, ${this.opacity * 0.05})`);
+        glow.addColorStop(1, 'rgba(0, 225, 255, 0)');
+        ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 225, 255, ${this.opacity})`;
+        ctx.arc(this.x, this.y, this.glowSize, 0, Math.PI * 2);
         ctx.fill();
-        // Highlight
+
+        // Teardrop body
+        ctx.globalAlpha = this.opacity;
         ctx.beginPath();
-        ctx.arc(this.x - this.radius * 0.3, this.y - this.radius * 0.3, this.radius * 0.3, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.moveTo(this.x, this.y - this.radius * 1.4);
+        ctx.bezierCurveTo(
+          this.x + this.radius * 0.6, this.y - this.radius * 0.6,
+          this.x + this.radius, this.y + this.radius * 0.3,
+          this.x, this.y + this.radius
+        );
+        ctx.bezierCurveTo(
+          this.x - this.radius, this.y + this.radius * 0.3,
+          this.x - this.radius * 0.6, this.y - this.radius * 0.6,
+          this.x, this.y - this.radius * 1.4
+        );
+        const bodyGrad = ctx.createLinearGradient(this.x, this.y - this.radius, this.x, this.y + this.radius);
+        bodyGrad.addColorStop(0, 'rgba(0, 225, 255, 0.9)');
+        bodyGrad.addColorStop(0.5, 'rgba(0, 200, 240, 0.6)');
+        bodyGrad.addColorStop(1, 'rgba(123, 97, 255, 0.4)');
+        ctx.fillStyle = bodyGrad;
+        ctx.fill();
+
+        // Inner highlight
+        ctx.globalAlpha = this.opacity * 0.7;
+        ctx.beginPath();
+        ctx.ellipse(this.x - this.radius * 0.2, this.y - this.radius * 0.3, this.radius * 0.25, this.radius * 0.4, -0.3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.fill();
         ctx.restore();
       }
     }
 
     class Ripple {
-      constructor(x, y, initialRadius) {
+      constructor(x, y, dropRadius) {
         this.x = x;
         this.y = y;
-        this.radius = initialRadius;
-        this.maxRadius = 30 + initialRadius * 10;
-        this.opacity = 0.6;
-        this.lineWidth = 1.5;
+        this.radius = dropRadius;
+        this.maxRadius = 60 + dropRadius * 6;
+        this.opacity = 0.5;
+        this.lineWidth = 2;
       }
       update() {
-        this.radius += 1.5;
-        this.opacity -= 0.01;
-        this.lineWidth = Math.max(0.2, this.lineWidth - 0.02);
+        this.radius += 2;
+        this.opacity -= 0.006;
+        this.lineWidth = Math.max(0.3, this.lineWidth - 0.015);
       }
       draw(ctx) {
         if (this.opacity <= 0) return;
@@ -1522,33 +1570,50 @@ function Preloader({ onComplete }) {
         ctx.strokeStyle = '#00e1ff';
         ctx.lineWidth = this.lineWidth;
         ctx.beginPath();
-        ctx.ellipse(this.x, this.y, this.radius, this.radius * 0.3, 0, 0, Math.PI * 2);
+        ctx.ellipse(this.x, this.y, this.radius, this.radius * 0.25, 0, 0, Math.PI * 2);
         ctx.stroke();
+        // Second inner ring
+        if (this.radius > 20) {
+          ctx.globalAlpha = this.opacity * 0.4;
+          ctx.beginPath();
+          ctx.ellipse(this.x, this.y, this.radius * 0.6, this.radius * 0.15, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
         ctx.restore();
       }
-      get isDead() {
-        return this.opacity <= 0 || this.radius > this.maxRadius;
-      }
+      get isDead() { return this.opacity <= 0 || this.radius > this.maxRadius; }
     }
 
-    // Initialize droplets
-    for (let i = 0; i < 40; i++) {
-      const d = new Droplet();
-      d.y = Math.random() * h * 0.7; // spread them out initially
-      droplets.push(d);
+    // Initialize fewer, larger droplets spread out
+    for (let i = 0; i < 15; i++) {
+      droplets.push(new Droplet(true));
     }
 
-    // Water surface wave
     let time = 0;
-
     function drawWaterSurface() {
       ctx.save();
-      ctx.globalAlpha = 0.15;
+      ctx.globalAlpha = 0.1;
+      const grad = ctx.createLinearGradient(0, waterLevel - 5, 0, waterLevel + 30);
+      grad.addColorStop(0, 'rgba(0, 225, 255, 0.15)');
+      grad.addColorStop(1, 'rgba(0, 225, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(0, waterLevel);
+      for (let x = 0; x <= w; x += 3) {
+        const y = waterLevel + Math.sin(x * 0.015 + time) * 4 + Math.sin(x * 0.004 + time * 0.3) * 6;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      ctx.fill();
+      // Surface line
+      ctx.globalAlpha = 0.2;
       ctx.strokeStyle = '#00e1ff';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      for (let x = 0; x <= w; x += 2) {
-        const y = waterLevel + Math.sin(x * 0.02 + time) * 3 + Math.sin(x * 0.005 + time * 0.5) * 5;
+      for (let x = 0; x <= w; x += 3) {
+        const y = waterLevel + Math.sin(x * 0.015 + time) * 4 + Math.sin(x * 0.004 + time * 0.3) * 6;
         if (x === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
@@ -1559,25 +1624,20 @@ function Preloader({ onComplete }) {
     let animId;
     function animate() {
       ctx.clearRect(0, 0, w, h);
-      time += 0.02;
+      time += 0.015;
 
-      // Spawn new droplets periodically
-      if (Math.random() < 0.15) {
-        droplets.push(new Droplet());
+      if (Math.random() < 0.03) {
+        droplets.push(new Droplet(false));
       }
 
-      // Update and draw droplets
       for (let i = droplets.length - 1; i >= 0; i--) {
         droplets[i].update();
         droplets[i].draw(ctx);
       }
-      // Cap droplet count
-      while (droplets.length > 60) droplets.shift();
+      while (droplets.length > 20) droplets.shift();
 
-      // Draw water surface
       drawWaterSurface();
 
-      // Update and draw ripples
       for (let i = ripples.length - 1; i >= 0; i--) {
         ripples[i].update();
         ripples[i].draw(ctx);
@@ -1588,7 +1648,6 @@ function Preloader({ onComplete }) {
     }
     animate();
 
-    // Expose gravity multiplier for exit animation
     canvasRef.current._setGravity = (mult) => { gravityMultiplier = mult; };
 
     return () => {
@@ -1603,7 +1662,7 @@ function Preloader({ onComplete }) {
     let windowLoaded = false;
     let progress = 0;
     const startTime = Date.now();
-    const MIN_DISPLAY = 2500; // minimum 2.5s
+    const MIN_DISPLAY = 3000;
 
     document.fonts.ready.then(() => { fontsLoaded = true; });
 
@@ -1614,23 +1673,20 @@ function Preloader({ onComplete }) {
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
 
-      // Simulated progress curve
-      if (elapsed < 500) {
-        progress = Math.min(30, (elapsed / 500) * 30);
-      } else if (elapsed < 1500) {
-        progress = 30 + ((elapsed - 500) / 1000) * 40;
+      if (elapsed < 800) {
+        progress = Math.min(30, (elapsed / 800) * 30);
       } else if (elapsed < 2000) {
-        progress = 70 + ((elapsed - 1500) / 500) * 20;
+        progress = 30 + ((elapsed - 800) / 1200) * 40;
+      } else if (elapsed < 2800) {
+        progress = 70 + ((elapsed - 2000) / 800) * 20;
       } else {
-        progress = Math.min(progress + 0.5, 95);
+        progress = Math.min(progress + 0.3, 95);
       }
 
-      // Final jump when ready
       if (fontsLoaded && windowLoaded && elapsed >= MIN_DISPLAY) {
         progress = 100;
       }
 
-      // Update DOM directly for performance
       if (progressRef.current) {
         progressRef.current.style.width = progress + '%';
       }
@@ -1640,17 +1696,14 @@ function Preloader({ onComplete }) {
 
       if (progress >= 100) {
         clearInterval(interval);
-        // Trigger exit animation
         triggerExit();
       }
     }, 30);
 
     function triggerExit() {
       setStatus('exiting');
-
-      // Accelerate droplets
       if (canvasRef.current?._setGravity) {
-        canvasRef.current._setGravity(5);
+        canvasRef.current._setGravity(6);
       }
 
       const tl = gsap.timeline({
@@ -1661,21 +1714,21 @@ function Preloader({ onComplete }) {
       });
 
       tl.to('.preloader-brand', {
-        scale: 1.1,
+        scale: 1.15,
         opacity: 0,
-        duration: 0.6,
+        duration: 0.8,
         ease: 'power2.in',
       })
       .to('.preloader-progress-wrap', {
         opacity: 0,
-        duration: 0.3,
+        duration: 0.4,
         ease: 'power2.in',
-      }, '<')
+      }, '<+0.1')
       .to(containerRef.current, {
         clipPath: 'circle(0% at 50% 50%)',
-        duration: 1,
+        duration: 1.2,
         ease: 'power3.inOut',
-      }, '-=0.2');
+      }, '-=0.3');
     }
 
     return () => {
@@ -1689,14 +1742,13 @@ function Preloader({ onComplete }) {
   return (
     <div ref={containerRef} className="preloader" style={{ clipPath: 'circle(150% at 50% 50%)' }}>
       <canvas ref={canvasRef} className="preloader-canvas" />
-
       <div className="preloader-brand">
         <div className="preloader-logo">
           <div className="preloader-logo-mark">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <path d="M16 4 L24 12 L24 20 L16 28 L8 20 L8 12 Z" fill="url(#preloaderGrad)" />
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+              <path d="M18 3 L27 12 L27 24 L18 33 L9 24 L9 12 Z" fill="url(#preloaderGrad)" />
               <defs>
-                <linearGradient id="preloaderGrad" x1="8" y1="4" x2="24" y2="28">
+                <linearGradient id="preloaderGrad" x1="9" y1="3" x2="27" y2="33">
                   <stop offset="0%" stopColor="#00e1ff" />
                   <stop offset="100%" stopColor="#7b61ff" />
                 </linearGradient>
@@ -1711,7 +1763,6 @@ function Preloader({ onComplete }) {
         </div>
         <div ref={percentRef} className="preloader-percent">0%</div>
       </div>
-
       <div className="preloader-progress-wrap">
         <div ref={progressRef} className="preloader-progress-bar" />
       </div>
