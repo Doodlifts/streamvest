@@ -1321,6 +1321,120 @@ a:hover {
 }
 
 /* ============================================================================
+   FEATURES SECTION (Under the Hood) — Rescale-style cards
+   ============================================================================ */
+
+.features-section {
+  padding: clamp(4rem, 10vw, 8rem) 2rem;
+  position: relative;
+}
+
+.features-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.features-heading {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--mist-white);
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.features-subheading {
+  font-size: 1.125rem;
+  color: var(--ghost-gray);
+  max-width: 560px;
+  margin: 0 auto 3.5rem;
+  line-height: 1.6;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+  text-align: left;
+}
+
+.feature-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0, 225, 255, 0.04) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.feature-card:hover {
+  border-color: rgba(0, 225, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 225, 255, 0.08);
+  border: 1px solid rgba(0, 225, 255, 0.12);
+  border-radius: 12px;
+  color: var(--flow-cyan);
+  margin-bottom: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+.feature-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--mist-white);
+  margin-bottom: 0.625rem;
+  letter-spacing: -0.01em;
+  position: relative;
+  z-index: 1;
+}
+
+.feature-desc {
+  font-size: 0.9375rem;
+  color: var(--ghost-gray);
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-card {
+    padding: 1.5rem;
+  }
+}
+
+/* ============================================================================
    SIMULATOR SECTION / FORM CARD
    ============================================================================ */
 
@@ -1630,6 +1744,7 @@ a:hover {
    ARCHITECTURE SECTION
    ============================================================================ */
 
+/* Legacy — replaced by .features-section */
 .architecture-section {
   padding: 8rem 2rem;
   background: linear-gradient(180deg, transparent 0%, rgba(123, 97, 255, 0.05) 100%);
@@ -2049,6 +2164,7 @@ a:hover {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 20px 40px rgba(0, 0, 0, 0.4);
+  will-change: transform;
 }
 
 .stream-card.completed-card {
@@ -2769,6 +2885,7 @@ a:hover {
   border-top-color: var(--flow-cyan);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  will-change: transform;
 }
 
 .grain-overlay {
