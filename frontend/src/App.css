@@ -489,6 +489,17 @@ html, body {
   border: 1px solid rgba(234, 179, 8, 0.15);
 }
 
+.card-status-badge.stuck {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.15);
+}
+
+.card-status-badge.stuck .badge-dot {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  background: #ef4444;
+}
+
 .badge-dot {
   width: 5px;
   height: 5px;
@@ -571,6 +582,10 @@ html, body {
   background: linear-gradient(90deg, var(--status-pending), #d4a00a);
 }
 
+.card-progress-fill.stuck {
+  background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
 /* Shimmer overlay on active progress */
 .card-progress-fill.streaming::after {
   content: '';
@@ -608,6 +623,7 @@ html, body {
 .progress-ring-fill.streaming { stroke: var(--status-streaming); }
 .progress-ring-fill.completed { stroke: var(--status-completed); }
 .progress-ring-fill.pending   { stroke: var(--status-pending); }
+.progress-ring-fill.stuck     { stroke: #ef4444; }
 
 .progress-ring-text {
   font-family: var(--font-mono);

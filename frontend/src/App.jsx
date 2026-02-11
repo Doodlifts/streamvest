@@ -357,8 +357,12 @@ function StreamCard({ stream, onClick }) {
   const pct = parseFloat(stream.totalAmount) > 0
     ? (parseFloat(stream.totalStreamed) / parseFloat(stream.totalAmount)) * 100
     : 0;
-  const cls = stream.status?.toLowerCase();
-  const isCompleted = stream.status !== 'STREAMING';
+  const isEffectivelyDone = pct >= 100 || stream._stuck;
+  const displayStatus = isEffectivelyDone && stream.status === 'STREAMING'
+    ? (pct >= 100 ? 'COMPLETED' : 'STUCK')
+    : stream.status;
+  const cls = displayStatus?.toLowerCase();
+  const isCompleted = stream.status !== 'STREAMING' || isEffectivelyDone;
 
   return (
     <div
@@ -369,7 +373,7 @@ function StreamCard({ stream, onClick }) {
         <span className="card-id">#{stream.id}</span>
         <span className={`card-status-badge ${cls}`}>
           <span className="badge-dot" />
-          {stream.status}
+          {displayStatus}
         </span>
       </div>
       <div className="card-body">
@@ -451,30 +455,42 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
     query: { enabled: !!user?.addr, refetchInterval: 15000 },
   });
 
-  const stats = useMemo(() => {
-    if (!streams) return { total: 0, locked: 0, active: 0 };
-    return {
-      total: streams.length,
-      locked: streams.reduce((s, st) => s + parseFloat(st.totalAmount || 0), 0),
-      active: streams.filter(s => s.status === 'STREAMING').length,
-    };
-  }, [streams]);
-
-  // Split and sort: active by most remaining first, completed by most recent
+  // Split and sort: active by most remaining first, completed by amount
+  // A stream is "done" if status !== STREAMING, OR if it's at 100%, OR if it's stuck
+  // Stuck = STREAMING but endTime has already passed
   const { activeStreams, completedStreams } = useMemo(() => {
-    const all = streams || [];
+    const all = (streams || []).map(s => {
+      const amt = parseFloat(s.totalAmount || 0);
+      const streamed = parseFloat(s.totalStreamed || 0);
+      const pct = amt > 0 ? (streamed / amt) * 100 : 0;
+      const now = Date.now() / 1000;
+      const isStuck = s.status === 'STREAMING' && s.endTime && parseFloat(s.endTime) < now && pct < 100;
+      return { ...s, _pct: pct, _stuck: isStuck };
+    });
+
     const active = all
-      .filter(s => s.status === 'STREAMING')
+      .filter(s => s.status === 'STREAMING' && s._pct < 100 && !s._stuck)
       .sort((a, b) => {
         const remA = 1 - (parseFloat(a.totalStreamed) / parseFloat(a.totalAmount));
         const remB = 1 - (parseFloat(b.totalStreamed) / parseFloat(b.totalAmount));
         return remB - remA;
       });
+
     const completed = all
-      .filter(s => s.status !== 'STREAMING')
+      .filter(s => s.status !== 'STREAMING' || s._pct >= 100 || s._stuck)
       .sort((a, b) => parseFloat(b.totalAmount || 0) - parseFloat(a.totalAmount || 0));
+
     return { activeStreams: active, completedStreams: completed };
   }, [streams]);
+
+  const stats = useMemo(() => {
+    if (!streams) return { total: 0, locked: 0, active: 0 };
+    return {
+      total: streams.length,
+      locked: streams.reduce((s, st) => s + parseFloat(st.totalAmount || 0), 0),
+      active: activeStreams.length,
+    };
+  }, [streams, activeStreams]);
 
   if (isLoading) {
     return <div className="loading"><div className="spinner" />Loading streams...</div>;
