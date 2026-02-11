@@ -8,13 +8,23 @@ import {
 
 // ────────────────────────────────────────────────────────────
 //  Cadence Scripts & Transactions
-//  Using import "ContractName" syntax — addresses resolved
-//  automatically via flow.json passed to FlowProvider.
+//  Using explicit address imports until mainnet supports
+//  the new import "ContractName" syntax (pending HCU fix).
 // ────────────────────────────────────────────────────────────
 
+const ADDRESSES = {
+  StreamVest: '0x5ec90e3dcf0067c4',
+  StreamVestSchedulerV2: '0x5ec90e3dcf0067c4',
+  NonFungibleToken: '0x1d7e57aa55817448',
+  MetadataViews: '0x1d7e57aa55817448',
+  FungibleToken: '0xf233dcee88fe0abe',
+  FlowToken: '0x1654653399040a61',
+  FlowTransactionScheduler: '0xe467b9dd11fa00df',
+};
+
 const GET_ALL_STREAMS = `
-import "StreamVest"
-import "NonFungibleToken"
+import StreamVest from ${ADDRESSES.StreamVest}
+import NonFungibleToken from ${ADDRESSES.NonFungibleToken}
 
 access(all) struct StreamInfo {
   access(all) let id: UInt64
@@ -60,8 +70,8 @@ access(all) fun main(owner: Address): [StreamInfo] {
 `;
 
 const GET_STREAM_STATUS = `
-import "StreamVest"
-import "NonFungibleToken"
+import StreamVest from ${ADDRESSES.StreamVest}
+import NonFungibleToken from ${ADDRESSES.NonFungibleToken}
 
 access(all) struct StreamStatus {
   access(all) let id: UInt64
@@ -120,9 +130,9 @@ access(all) fun main(owner: Address, nftID: UInt64): StreamStatus {
 `;
 
 const GET_NFT_DISPLAY = `
-import "StreamVest"
-import "NonFungibleToken"
-import "MetadataViews"
+import StreamVest from ${ADDRESSES.StreamVest}
+import NonFungibleToken from ${ADDRESSES.NonFungibleToken}
+import MetadataViews from ${ADDRESSES.MetadataViews}
 
 access(all) struct NFTDisplay {
   access(all) let id: UInt64
@@ -158,12 +168,12 @@ access(all) fun main(owner: Address, nftID: UInt64): NFTDisplay {
 `;
 
 const MINT_AND_SCHEDULE = `
-import "StreamVest"
-import "StreamVestSchedulerV2"
-import "NonFungibleToken"
-import "FungibleToken"
-import "FlowToken"
-import "FlowTransactionScheduler"
+import StreamVest from ${ADDRESSES.StreamVest}
+import StreamVestSchedulerV2 from ${ADDRESSES.StreamVestSchedulerV2}
+import NonFungibleToken from ${ADDRESSES.NonFungibleToken}
+import FungibleToken from ${ADDRESSES.FungibleToken}
+import FlowToken from ${ADDRESSES.FlowToken}
+import FlowTransactionScheduler from ${ADDRESSES.FlowTransactionScheduler}
 
 transaction(
   amount: UFix64,
