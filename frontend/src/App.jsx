@@ -7,7 +7,7 @@ import {
 } from '@onflow/react-sdk';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from '@studio-freight/lenis';
+
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -328,26 +328,10 @@ function toFixedCadence(val) {
 // ────────────────────────────────────────────────────────────
 
 function useSmoothScroll() {
+  // Native scroll — no Lenis hijacking
   useEffect(() => {
-    const lenis = new Lenis({ lerp: 0.12, smoothWheel: true, wheelMultiplier: 1.2 });
-    let frameId;
-    function raf(time) {
-      lenis.raf(time);
-      frameId = requestAnimationFrame(raf);
-    }
-    frameId = requestAnimationFrame(raf);
-
-    lenis.on('scroll', ScrollTrigger.update);
-
-    const tickerCallback = (time) => lenis.raf(time * 1000);
-    gsap.ticker.add(tickerCallback);
-    gsap.ticker.lagSmoothing(0);
-
-    return () => {
-      cancelAnimationFrame(frameId);
-      gsap.ticker.remove(tickerCallback);
-      lenis.destroy();
-    };
+    ScrollTrigger.refresh();
+    return () => ScrollTrigger.getAll().forEach(t => t.kill());
   }, []);
 }
 
