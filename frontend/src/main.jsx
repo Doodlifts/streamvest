@@ -15,6 +15,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         appDetailIcon: 'https://i.imgur.com/YbFxBJQ.png',
         appDetailDescription: 'Autonomous Token Vesting on Flow',
         appDetailUrl: 'https://streamvest.vercel.app',
+        discovery: {
+          wallet: 'https://fcl-discovery.onflow.org/authn',
+          authnEndpoint: 'https://fcl-discovery.onflow.org/api/authn',
+        },
       }}
       flowJson={flowJson}
     >
