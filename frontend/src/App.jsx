@@ -324,6 +324,78 @@ function toFixedCadence(val) {
 //  Components
 // ────────────────────────────────────────────────────────────
 
+function ProgressRing({ percent, status, size = 56 }) {
+  const strokeWidth = 4;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+  const cls = status?.toLowerCase();
+
+  return (
+    <svg width={size} height={size} className="progress-ring-svg">
+      <circle
+        className="progress-ring-bg"
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={strokeWidth}
+      />
+      <circle
+        className={`progress-ring-fill ${cls}`}
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={strokeWidth}
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+      />
+    </svg>
+  );
+}
+
+function StreamCard({ stream, onClick }) {
+  const pct = parseFloat(stream.totalAmount) > 0
+    ? (parseFloat(stream.totalStreamed) / parseFloat(stream.totalAmount)) * 100
+    : 0;
+  const cls = stream.status?.toLowerCase();
+  const isCompleted = stream.status !== 'STREAMING';
+
+  return (
+    <div
+      className={`stream-card ${isCompleted ? 'completed-card' : ''}`}
+      onClick={onClick}
+    >
+      <div className="card-top">
+        <span className="card-id">#{stream.id}</span>
+        <span className={`card-status-badge ${cls}`}>
+          <span className="badge-dot" />
+          {stream.status}
+        </span>
+      </div>
+      <div className="card-body">
+        <div className="card-ring">
+          <ProgressRing percent={pct} status={stream.status} />
+        </div>
+        <div className="card-info">
+          <div className="card-amount">
+            {formatFlow(stream.totalAmount, 2)}
+            <span className="card-amount-suffix">FLOW</span>
+          </div>
+          <div className="card-dest">
+            {formatAddr(stream.destinationAddress)}
+          </div>
+          <div className="card-progress-row">
+            <div className="card-progress-bar">
+              <div className={`card-progress-fill ${cls}`} style={{ width: `${pct}%` }} />
+            </div>
+            <span className="card-progress-pct">{pct.toFixed(0)}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LogoMark() {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -388,11 +460,27 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
     };
   }, [streams]);
 
+  // Split and sort: active by most remaining first, completed by most recent
+  const { activeStreams, completedStreams } = useMemo(() => {
+    const all = streams || [];
+    const active = all
+      .filter(s => s.status === 'STREAMING')
+      .sort((a, b) => {
+        const remA = 1 - (parseFloat(a.totalStreamed) / parseFloat(a.totalAmount));
+        const remB = 1 - (parseFloat(b.totalStreamed) / parseFloat(b.totalAmount));
+        return remB - remA;
+      });
+    const completed = all
+      .filter(s => s.status !== 'STREAMING')
+      .sort((a, b) => parseFloat(b.totalAmount || 0) - parseFloat(a.totalAmount || 0));
+    return { activeStreams: active, completedStreams: completed };
+  }, [streams]);
+
   if (isLoading) {
     return <div className="loading"><div className="spinner" />Loading streams...</div>;
   }
 
-  const streamList = streams || [];
+  const total = (streams || []).length;
 
   return (
     <>
@@ -414,45 +502,50 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
         </div>
       </div>
 
-      <div className="section-header">
-        <span className="section-title">Streams</span>
-      </div>
-
-      {streamList.length === 0 ? (
+      {total === 0 ? (
         <div className="empty">
           <div className="empty-title">No streams yet</div>
           <div className="empty-desc">Create your first streaming vest to get started.</div>
           <button className="empty-btn" onClick={onNavigateCreate}>+ Create Stream</button>
         </div>
       ) : (
-        <div className="stream-list">
-          {streamList.map(stream => {
-            const pct = parseFloat(stream.totalAmount) > 0
-              ? (parseFloat(stream.totalStreamed) / parseFloat(stream.totalAmount)) * 100
-              : 0;
-            const cls = stream.status?.toLowerCase();
-            return (
-              <div
-                key={stream.id}
-                className="stream-row"
-                onClick={() => onSelectStream(stream.id)}
-              >
-                <span className="stream-id">#{stream.id}</span>
-                <span className="stream-dest">{formatAddr(stream.destinationAddress)}</span>
-                <span className="stream-amount">{formatFlow(stream.totalAmount)} FLOW</span>
-                <div className="stream-progress-cell">
-                  <div className="progress-bar">
-                    <div className={`progress-fill ${cls}`} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-                <div className="stream-status">
-                  <span className={`status-dot ${cls}`} />
-                  <span style={{ color: `var(--status-${cls})` }}>{stream.status}</span>
-                </div>
+        <>
+          {activeStreams.length > 0 && (
+            <>
+              <div className="section-header">
+                <span className="section-title">Active Streams</span>
+                <span className="section-count">{activeStreams.length}</span>
               </div>
-            );
-          })}
-        </div>
+              <div className="stream-cards">
+                {activeStreams.map(stream => (
+                  <StreamCard
+                    key={stream.id}
+                    stream={stream}
+                    onClick={() => onSelectStream(stream.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+
+          {completedStreams.length > 0 && (
+            <div className={activeStreams.length > 0 ? 'section-divider' : ''}>
+              <div className="section-header">
+                <span className="section-title">Completed</span>
+                <span className="section-count">{completedStreams.length}</span>
+              </div>
+              <div className="stream-cards">
+                {completedStreams.map(stream => (
+                  <StreamCard
+                    key={stream.id}
+                    stream={stream}
+                    onClick={() => onSelectStream(stream.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </>
   );
@@ -496,10 +589,10 @@ function StreamDetailView({ user, streamId, onBack }) {
 
       <div className="detail-header">
         <span className="detail-title">Stream #{detail.id}</span>
-        <div className="stream-status">
-          <span className={`status-dot ${cls}`} />
-          <span style={{ color: `var(--status-${cls})` }}>{detail.status}</span>
-        </div>
+        <span className={`card-status-badge ${cls}`}>
+          <span className="badge-dot" />
+          {detail.status}
+        </span>
       </div>
 
       {svg && (
