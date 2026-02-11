@@ -252,6 +252,31 @@ transaction(
 }
 `;
 
+const TRANSFER_NFT = `
+import StreamVest from ${ADDRESSES.StreamVest}
+import NonFungibleToken from ${ADDRESSES.NonFungibleToken}
+
+transaction(recipient: Address, nftID: UInt64) {
+  let withdrawRef: auth(NonFungibleToken.Withdraw) &StreamVest.Collection
+  let depositRef: &{NonFungibleToken.Collection}
+
+  prepare(signer: auth(Storage) &Account) {
+    self.withdrawRef = signer.storage.borrow<auth(NonFungibleToken.Withdraw) &StreamVest.Collection>(
+      from: StreamVest.CollectionStoragePath
+    ) ?? panic("Could not borrow sender collection")
+
+    self.depositRef = getAccount(recipient)
+      .capabilities.borrow<&{NonFungibleToken.Collection}>(StreamVest.CollectionPublicPath)
+      ?? panic("Recipient does not have a StreamVest collection set up")
+  }
+
+  execute {
+    let nft <- self.withdrawRef.withdraw(withdrawID: nftID)
+    self.depositRef.deposit(token: <-nft)
+  }
+}
+`;
+
 // ────────────────────────────────────────────────────────────
 //  Constants
 // ────────────────────────────────────────────────────────────
@@ -863,6 +888,9 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
 }
 
 function StreamDetailView({ user, streamId, onBack }) {
+  const [sendAddr, setSendAddr] = useState('');
+  const [sendStatus, setSendStatus] = useState(null);
+
   const { data: detail, isLoading: loadingStatus } = useFlowQuery({
     cadence: GET_STREAM_STATUS,
     args: (arg, t) => [
@@ -881,6 +909,34 @@ function StreamDetailView({ user, streamId, onBack }) {
     query: { enabled: !!user?.addr && streamId != null, refetchInterval: 10000 },
   });
 
+  const { mutate: transferMutate, data: transferTxId, isPending: isTransferring } = useFlowMutate();
+  const { transactionStatus: transferStatus } = useFlowTransactionStatus({ id: transferTxId });
+
+  useEffect(() => {
+    if (!transferStatus) return;
+    if (transferStatus.status === 4) {
+      setSendStatus({ type: 'success', msg: 'NFT transferred successfully!' });
+      setSendAddr('');
+    } else if (transferStatus.status === 5) {
+      setSendStatus({ type: 'error', msg: 'Transfer failed. Recipient may not have a collection set up.' });
+    }
+  }, [transferStatus]);
+
+  const handleSendNFT = () => {
+    if (!sendAddr.startsWith('0x') || sendAddr.length < 16) {
+      setSendStatus({ type: 'error', msg: 'Enter a valid Flow address (0x...)' });
+      return;
+    }
+    setSendStatus(null);
+    transferMutate({
+      cadence: TRANSFER_NFT,
+      args: (arg, t) => [
+        arg(sendAddr, t.Address),
+        arg(String(streamId), t.UInt64),
+      ],
+    });
+  };
+
   const loading = loadingStatus || loadingSvg;
   const svg = display?.rawSVG || null;
 
@@ -898,33 +954,37 @@ function StreamDetailView({ user, streamId, onBack }) {
     <>
       <button className="detail-back magnetic" onClick={onBack}>&larr; Back to streams</button>
 
-      <div className="detail-header">
-        <span className="detail-title">Stream #{detail.id}</span>
-        <span className={`card-status-badge ${cls}`}>
-          <span className="badge-dot" />
-          {detail.status}
-        </span>
-      </div>
+      <div className="detail-top">
+        <div className="detail-top-info">
+          <div className="detail-header">
+            <span className="detail-title">Stream #{detail.id}</span>
+            <span className={`card-status-badge ${cls}`}>
+              <span className="badge-dot" />
+              {detail.status}
+            </span>
+          </div>
 
-      {svg && (
-        <div className="nft-svg-container">
-          <div className="nft-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div className="detail-progress">
+            <div className="detail-progress-bar">
+              <div
+                className={`detail-progress-fill progress-fill ${cls}`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="detail-progress-labels">
+              <span>{progress.toFixed(1)}% complete</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>
+                {formatFlow(detail.totalStreamed)} / {formatFlow(detail.totalAmount)} FLOW
+              </span>
+            </div>
+          </div>
         </div>
-      )}
 
-      <div className="detail-progress">
-        <div className="detail-progress-bar">
-          <div
-            className={`detail-progress-fill progress-fill ${cls}`}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <div className="detail-progress-labels">
-          <span>{progress.toFixed(1)}% complete</span>
-          <span style={{ color: 'var(--text-tertiary)' }}>
-            {formatFlow(detail.totalStreamed)} / {formatFlow(detail.totalAmount)} FLOW
-          </span>
-        </div>
+        {svg && (
+          <div className="nft-svg-container">
+            <div className="nft-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+          </div>
+        )}
       </div>
 
       <div className="detail-grid">
@@ -965,6 +1025,29 @@ function StreamDetailView({ user, streamId, onBack }) {
           <div className="detail-cell-label">End Time</div>
           <div className="detail-cell-value">{formatDate(detail.endTime)}</div>
         </div>
+      </div>
+
+      <div className="send-nft-section">
+        <div className="send-nft-title">Transfer Stream NFT</div>
+        <div className="send-nft-row">
+          <input
+            className="send-nft-input"
+            type="text"
+            placeholder="Recipient address (0x...)"
+            value={sendAddr}
+            onChange={(e) => { setSendAddr(e.target.value); setSendStatus(null); }}
+          />
+          <button
+            className="send-nft-btn magnetic"
+            onClick={handleSendNFT}
+            disabled={isTransferring || !sendAddr}
+          >
+            {isTransferring ? 'Sending...' : 'Send NFT'}
+          </button>
+        </div>
+        {sendStatus && (
+          <div className={`send-nft-status ${sendStatus.type}`}>{sendStatus.msg}</div>
+        )}
       </div>
     </>
   );

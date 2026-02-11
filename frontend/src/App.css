@@ -285,6 +285,23 @@ body::after {
   height: 100vh;
 }
 
+/* Main content area - clear fixed header */
+.main {
+  padding-top: 6rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  min-height: 100vh;
+}
+
+.main-landing {
+  padding-top: 0;
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 /* ============================================================================
    CUSTOM CURSOR
    ============================================================================ */
@@ -2717,7 +2734,27 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--spacing-lg);
-  margin-bottom: 3rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-top {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 2rem;
+  align-items: start;
+  margin-bottom: 2rem;
+}
+
+.detail-top-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .detail-top {
+    grid-template-columns: 1fr;
+  }
 }
 
 .back-button {
@@ -2751,20 +2788,25 @@ a:hover {
 
 .nft-svg-container,
 .nft-display {
-  width: 200px;
-  height: 200px;
-  background: rgba(0, 225, 255, 0.1);
-  border: 2px solid rgba(0, 225, 255, 0.2);
+  width: 280px;
+  height: 280px;
+  background: rgba(0, 225, 255, 0.06);
+  border: 1px solid rgba(0, 225, 255, 0.15);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: auto;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .nft-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.nft-svg svg {
   width: 100%;
   height: 100%;
 }
@@ -2775,6 +2817,17 @@ a:hover {
   inset: -50%;
   background: linear-gradient(45deg, transparent, rgba(0, 225, 255, 0.2), transparent);
   animation: float 3s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+  .nft-svg-container,
+  .nft-display {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    max-width: 280px;
+    margin: 0 auto;
+  }
 }
 
 .detail-progress {
@@ -2808,40 +2861,135 @@ a:hover {
 .detail-content,
 .detail-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 3rem;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
 
 .detail-cell {
-  padding: 2rem;
+  padding: 1.25rem;
   background: var(--glass-surface);
   backdrop-filter: var(--blur-md);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 20px 40px rgba(0, 0, 0, 0.4);
+    0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .detail-cell-label {
   color: var(--ghost-gray);
-  font-size: 0.875rem;
-  margin-bottom: var(--spacing-sm);
+  font-size: 0.7rem;
+  margin-bottom: 0.375rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .detail-cell-value {
   font-family: var(--font-display);
-  font-size: 1.75rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--mist-white);
   letter-spacing: -0.01em;
+  word-break: break-all;
 }
 
 .detail-cell-value.amount {
   color: var(--flow-cyan);
+}
+
+@media (max-width: 900px) {
+  .detail-content,
+  .detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Send NFT Section */
+.send-nft-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--glass-surface);
+  backdrop-filter: var(--blur-md);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+}
+
+.send-nft-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--mist-white);
+  margin-bottom: 1rem;
+}
+
+.send-nft-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.send-nft-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  color: var(--mist-white);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  outline: none;
+  transition: border-color var(--transition-base);
+}
+
+.send-nft-input:focus {
+  border-color: var(--flow-cyan);
+}
+
+.send-nft-input::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.send-nft-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 225, 255, 0.1);
+  border: 1px solid var(--flow-cyan);
+  border-radius: var(--radius-md);
+  color: var(--flow-cyan);
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  white-space: nowrap;
+}
+
+.send-nft-btn:hover:not(:disabled) {
+  background: var(--flow-cyan);
+  color: var(--void-black);
+  box-shadow: 0 0 20px rgba(0, 225, 255, 0.3);
+}
+
+.send-nft-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.send-nft-status {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ghost-gray);
+}
+
+.send-nft-status.success {
+  color: var(--success-pulse);
+}
+
+.send-nft-status.error {
+  color: #ff6b6b;
 }
 
 .detail-description {
