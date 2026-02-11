@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "start": "npx remotion studio",
-    "build": "npx remotion render src/index.tsx StreamVestPromo out/promo.mp4",
-    "render": "npx remotion render src/index.tsx StreamVestPromo out/promo.mp4"
+    "build": "npx remotion render src/index.ts StreamVestPromo out/StreamVestLaunch.mp4",
+    "render": "npx remotion render src/index.ts StreamVestPromo out/StreamVestLaunch.mp4"
   },
   "dependencies": {
     "@remotion/cli": "4.0.421",

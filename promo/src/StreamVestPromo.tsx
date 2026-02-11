@@ -1,56 +1,50 @@
 import React from "react";
-import { AbsoluteFill, Series } from "remotion";
+import { AbsoluteFill } from "remotion";
 import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
-import { TitleScene } from "./scenes/TitleScene";
-import { ProblemScene } from "./scenes/ProblemScene";
-import { SolutionScene } from "./scenes/SolutionScene";
-import { ArchitectureScene } from "./scenes/ArchitectureScene";
-import { FeaturesScene } from "./scenes/FeaturesScene";
-import { CTAScene } from "./scenes/CTAScene";
+import { LogoReveal } from "./scenes/LogoReveal";
+import { TransformScene } from "./scenes/TransformScene";
+import { ValueProps } from "./scenes/ValueProps";
+import { LaunchCTA } from "./scenes/LaunchCTA";
 
 export const StreamVestPromo: React.FC = () => {
   return (
-    <AbsoluteFill style={{ backgroundColor: "#09090b" }}>
+    <AbsoluteFill style={{ backgroundColor: "#050505" }}>
       <TransitionSeries>
+        {/* Scene 1: Logo Reveal — 5s */}
         <TransitionSeries.Sequence durationInFrames={150}>
-          <TitleScene />
+          <LogoReveal />
         </TransitionSeries.Sequence>
+
         <TransitionSeries.Transition
           presentation={fade()}
           timing={linearTiming({ durationInFrames: 20 })}
         />
-        <TransitionSeries.Sequence durationInFrames={150}>
-          <ProblemScene />
+
+        {/* Scene 2: ~~Vesting~~ → Streaming — 5.5s */}
+        <TransitionSeries.Sequence durationInFrames={165}>
+          <TransformScene />
         </TransitionSeries.Sequence>
+
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
           timing={linearTiming({ durationInFrames: 15 })}
         />
-        <TransitionSeries.Sequence durationInFrames={160}>
-          <SolutionScene />
+
+        {/* Scene 3: Three value propositions — 7s */}
+        <TransitionSeries.Sequence durationInFrames={210}>
+          <ValueProps />
         </TransitionSeries.Sequence>
+
         <TransitionSeries.Transition
           presentation={fade()}
           timing={linearTiming({ durationInFrames: 20 })}
         />
-        <TransitionSeries.Sequence durationInFrames={180}>
-          <ArchitectureScene />
-        </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={slide({ direction: "from-bottom" })}
-          timing={linearTiming({ durationInFrames: 15 })}
-        />
-        <TransitionSeries.Sequence durationInFrames={160}>
-          <FeaturesScene />
-        </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={fade()}
-          timing={linearTiming({ durationInFrames: 20 })}
-        />
-        <TransitionSeries.Sequence durationInFrames={180}>
-          <CTAScene />
+
+        {/* Scene 4: Live on Mainnet CTA — 12s */}
+        <TransitionSeries.Sequence durationInFrames={360}>
+          <LaunchCTA />
         </TransitionSeries.Sequence>
       </TransitionSeries>
     </AbsoluteFill>
