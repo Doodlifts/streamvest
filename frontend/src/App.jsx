@@ -341,12 +341,15 @@ function useSmoothScroll() {
     frameId = requestAnimationFrame(raf);
 
     lenis.on('scroll', ScrollTrigger.update);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
+
+    const tickerCallback = (time) => lenis.raf(time * 1000);
+    gsap.ticker.add(tickerCallback);
+    gsap.ticker.lagSmoothing(0);
 
     return () => {
       cancelAnimationFrame(frameId);
+      gsap.ticker.remove(tickerCallback);
       lenis.destroy();
-      gsap.ticker.remove((time) => lenis.raf(time * 1000));
     };
   }, []);
 }
@@ -420,54 +423,86 @@ function HeroVisualization() {
 function CustomCursor() {
   const dotRef = useRef(null);
   const ringRef = useRef(null);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const isFine = window.matchMedia('(pointer: fine)').matches;
-    if (!isFine) return;
+    // Skip on touch devices
+    if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) return;
 
-    const dotPos = { x: 0, y: 0 };
-    const ringPos = { x: 0, y: 0 };
-    const dotQuick = gsap.quickTo(dotRef.current, { left: 0, top: 0 }, { duration: 0.1 });
-    const ringQuick = gsap.quickTo(ringRef.current, { left: 0, top: 0 }, { duration: 0.3 });
+    const dot = dotRef.current;
+    const ring = ringRef.current;
+    if (!dot || !ring) return;
 
-    const handleMouseMove = (e) => {
-      dotPos.x = e.clientX;
-      dotPos.y = e.clientY;
-      ringPos.x = e.clientX;
-      ringPos.y = e.clientY;
+    // GSAP quickTo for buttery smooth cursor tracking
+    const xDot = gsap.quickTo(dot, "left", { duration: 0.1, ease: "power3.out" });
+    const yDot = gsap.quickTo(dot, "top", { duration: 0.1, ease: "power3.out" });
+    const xRing = gsap.quickTo(ring, "left", { duration: 0.3, ease: "power3.out" });
+    const yRing = gsap.quickTo(ring, "top", { duration: 0.3, ease: "power3.out" });
 
-      dotQuick({ left: dotPos.x - 4, top: dotPos.y - 4 });
-      ringQuick({ left: ringPos.x - 12, top: ringPos.y - 12 });
-
-      const magnetic = document.querySelectorAll('.magnetic');
-      magnetic.forEach(el => {
-        const rect = el.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        const dx = Math.abs(e.clientX - cx);
-        const dy = Math.abs(e.clientY - cy);
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 50) {
-          if (ringRef.current) {
-            gsap.to(ringRef.current, { scale: 1.5, duration: 0.3 });
-          }
-        } else {
-          if (ringRef.current) {
-            gsap.to(ringRef.current, { scale: 1, duration: 0.3 });
-          }
-        }
-      });
+    const onMove = (e) => {
+      xDot(e.clientX - 4);
+      yDot(e.clientY - 4);
+      xRing(e.clientX - 20);
+      yRing(e.clientY - 20);
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+    const onLeave = () => setVisible(false);
+    const onEnter = () => setVisible(true);
+
+    // Interactive element hover handlers
+    const onLinkEnter = () => {
+      gsap.to(ring, { scale: 1.8, borderColor: 'rgba(0, 225, 255, 0.6)', duration: 0.3 });
+      gsap.to(dot, { scale: 0.5, opacity: 0.5, duration: 0.2 });
+    };
+    const onLinkLeave = () => {
+      gsap.to(ring, { scale: 1, borderColor: 'rgba(255, 255, 255, 0.3)', duration: 0.3 });
+      gsap.to(dot, { scale: 1, opacity: 1, duration: 0.2 });
+    };
+
+    // Listen on window for proper coordinate mapping
+    window.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseleave', onLeave);
+    document.addEventListener('mouseenter', onEnter);
+
+    // Track interactive elements
+    const attachHoverListeners = () => {
+      const interactives = document.querySelectorAll('a, button, [role="button"], .magnetic, .stream-card, .preset-btn, .nav-item');
+      interactives.forEach(el => {
+        el.addEventListener('mouseenter', onLinkEnter);
+        el.addEventListener('mouseleave', onLinkLeave);
+      });
+      return interactives;
+    };
+
+    const interactives = attachHoverListeners();
+
+    // Re-attach on DOM changes (e.g., view switches)
+    const observer = new MutationObserver(() => {
+      attachHoverListeners();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseleave', onLeave);
+      document.removeEventListener('mouseenter', onEnter);
+      interactives.forEach(el => {
+        el.removeEventListener('mouseenter', onLinkEnter);
+        el.removeEventListener('mouseleave', onLinkLeave);
+      });
+      observer.disconnect();
+    };
   }, []);
+
+  // Don't render on touch devices
+  if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
+    return null;
+  }
 
   return (
     <>
-      <div ref={dotRef} className="cursor-dot" />
-      <div ref={ringRef} className="cursor-ring" />
+      <div ref={dotRef} className="cursor-dot" style={{ opacity: visible ? 1 : 0 }} />
+      <div ref={ringRef} className="cursor-ring" style={{ opacity: visible ? 0.5 : 0 }} />
     </>
   );
 }
@@ -563,6 +598,19 @@ function MagneticButton({ children, onClick, className = '', disabled = false })
 
 function ArchitectureItem({ title, detail, index }) {
   const [open, setOpen] = useState(false);
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    if (open) {
+      gsap.fromTo(contentRef.current,
+        { height: 0, opacity: 0 },
+        { height: 'auto', opacity: 1, duration: 0.5, ease: 'power2.out' }
+      );
+    } else {
+      gsap.to(contentRef.current, { height: 0, opacity: 0, duration: 0.4, ease: 'power2.inOut' });
+    }
+  }, [open]);
 
   return (
     <div className={`architecture-item ${open ? 'open' : ''}`}>
@@ -574,11 +622,9 @@ function ArchitectureItem({ title, detail, index }) {
         <span className="architecture-item-title">{title}</span>
         <span className="architecture-item-toggle">{open ? '−' : '+'}</span>
       </button>
-      {open && (
-        <div className="architecture-item-detail">
-          <p>{detail}</p>
-        </div>
-      )}
+      <div ref={contentRef} className="architecture-item-detail" style={{ height: 0, overflow: 'hidden' }}>
+        <p>{detail}</p>
+      </div>
     </div>
   );
 }
@@ -733,40 +779,50 @@ function LogoMark() {
 }
 
 function Header({ user, view, setView, authenticate, unauthenticate }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   return (
-    <header className="header">
-      <div className="header-left">
-        <div className="logo magnetic">
-          <div className="logo-mark"><LogoMark /></div>
-          <span className="logo-text">StreamVest</span>
+    <header className={`header ${scrolled ? 'header-scrolled' : 'header-transparent'}`}>
+      <div className="header-inner">
+        <div className="header-left">
+          <div className="logo magnetic">
+            <div className="logo-mark"><LogoMark /></div>
+            <span className="logo-text">StreamVest</span>
+          </div>
+          {user?.addr && (
+            <nav className="nav">
+              <button
+                className={`nav-item magnetic ${view === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setView('dashboard')}
+              >
+                Dashboard
+              </button>
+              <button
+                className={`nav-item magnetic ${view === 'create' ? 'active' : ''}`}
+                onClick={() => setView('create')}
+              >
+                Create
+              </button>
+            </nav>
+          )}
         </div>
-        {user?.addr && (
-          <nav className="nav">
-            <button
-              className={`nav-item magnetic ${view === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setView('dashboard')}
-            >
-              Dashboard
-            </button>
-            <button
-              className={`nav-item magnetic ${view === 'create' ? 'active' : ''}`}
-              onClick={() => setView('create')}
-            >
-              Create
-            </button>
-          </nav>
+        {user?.addr ? (
+          <button className="wallet-btn magnetic" onClick={unauthenticate} title="Disconnect">
+            <span className="wallet-dot" />
+            {formatAddr(user.addr)}
+          </button>
+        ) : (
+          <button className="wallet-btn wallet-btn-connect magnetic" onClick={authenticate}>
+            Connect Wallet
+          </button>
         )}
       </div>
-      {user?.addr ? (
-        <button className="wallet-btn magnetic" onClick={unauthenticate} title="Disconnect">
-          <span className="wallet-dot" />
-          {formatAddr(user.addr)}
-        </button>
-      ) : (
-        <button className="wallet-btn wallet-btn-connect magnetic" onClick={authenticate}>
-          Connect Wallet
-        </button>
-      )}
     </header>
   );
 }
@@ -1245,11 +1301,13 @@ function LandingPage({ onConnect }) {
       </section>
 
       <section className="footer-section">
+        <div className="footer-glow" />
         <div className="footer-cta-container">
           <h2 className="footer-cta-text">
-            <span className="footer-cta-gradient">Enter the Stream</span>
+            Enter the Stream
           </h2>
-          <MagneticButton className="footer-cta-btn" onClick={onConnect}>
+          <p className="footer-cta-sub">Autonomous token vesting on Flow</p>
+          <MagneticButton className="footer-cta-btn btn-primary" onClick={onConnect}>
             Connect Wallet
           </MagneticButton>
         </div>
@@ -1258,15 +1316,26 @@ function LandingPage({ onConnect }) {
             <span className="footer-contract-label">Contract</span>
             <button
               className="footer-contract-addr magnetic"
-              onClick={() => navigator.clipboard.writeText('0x5ec90e3dcf0067c4')}
+              onClick={(e) => {
+                navigator.clipboard.writeText('0x5ec90e3dcf0067c4');
+                const btn = e.currentTarget;
+                const original = btn.querySelector('.copy-icon').textContent;
+                btn.querySelector('.copy-icon').textContent = '✓';
+                setTimeout(() => { btn.querySelector('.copy-icon').textContent = original; }, 2000);
+              }}
             >
               0x5ec90e3dcf0067c4
               <span className="copy-icon">⧉</span>
             </button>
           </div>
           <div className="footer-links">
-            <a href="https://github.com/Doodlifts/streamvest" target="_blank" rel="noopener noreferrer" className="magnetic">GitHub</a>
-            <a href="https://www.flowscan.io/account/0x5ec90e3dcf0067c4" target="_blank" rel="noopener noreferrer" className="magnetic">FlowScan</a>
+            <a href="https://github.com/Doodlifts/streamvest" target="_blank" rel="noopener noreferrer" className="footer-link magnetic">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              GitHub
+            </a>
+            <a href="https://www.flowscan.io/account/0x5ec90e3dcf0067c4" target="_blank" rel="noopener noreferrer" className="footer-link magnetic">
+              FlowScan
+            </a>
           </div>
         </div>
       </section>
