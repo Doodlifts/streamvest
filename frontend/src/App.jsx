@@ -357,12 +357,12 @@ function StreamCard({ stream, onClick }) {
   const pct = parseFloat(stream.totalAmount) > 0
     ? (parseFloat(stream.totalStreamed) / parseFloat(stream.totalAmount)) * 100
     : 0;
-  const isEffectivelyDone = pct >= 100 || stream._stuck;
-  const displayStatus = isEffectivelyDone && stream.status === 'STREAMING'
-    ? (pct >= 100 ? 'COMPLETED' : 'STUCK')
+  const isDone = stream._done;
+  const displayStatus = isDone && stream.status === 'STREAMING'
+    ? (stream._stuck ? 'STUCK' : 'COMPLETED')
     : stream.status;
   const cls = displayStatus?.toLowerCase();
-  const isCompleted = stream.status !== 'STREAMING' || isEffectivelyDone;
+  const isCompleted = isDone;
 
   return (
     <div
@@ -456,20 +456,21 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
   });
 
   // Split and sort: active by most remaining first, completed by amount
-  // A stream is "done" if status !== STREAMING, OR if it's at 100%, OR if it's stuck
-  // Stuck = STREAMING but endTime has already passed
+  // A stream is "done" if: not active (isActive === false), status !== STREAMING,
+  // or percentage >= 99.5 (accounts for rounding — shows as 100% in UI)
   const { activeStreams, completedStreams } = useMemo(() => {
     const all = (streams || []).map(s => {
       const amt = parseFloat(s.totalAmount || 0);
       const streamed = parseFloat(s.totalStreamed || 0);
       const pct = amt > 0 ? (streamed / amt) * 100 : 0;
-      const now = Date.now() / 1000;
-      const isStuck = s.status === 'STREAMING' && s.endTime && parseFloat(s.endTime) < now && pct < 100;
-      return { ...s, _pct: pct, _stuck: isStuck };
+      // Use the contract's isActive flag as primary signal, with pct as fallback
+      const isDone = s.isActive === false || s.status !== 'STREAMING' || pct >= 99.5;
+      const isStuck = isDone && s.status === 'STREAMING' && pct < 99.5;
+      return { ...s, _pct: pct, _stuck: isStuck, _done: isDone };
     });
 
     const active = all
-      .filter(s => s.status === 'STREAMING' && s._pct < 100 && !s._stuck)
+      .filter(s => !s._done)
       .sort((a, b) => {
         const remA = 1 - (parseFloat(a.totalStreamed) / parseFloat(a.totalAmount));
         const remB = 1 - (parseFloat(b.totalStreamed) / parseFloat(b.totalAmount));
@@ -477,7 +478,7 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
       });
 
     const completed = all
-      .filter(s => s.status !== 'STREAMING' || s._pct >= 100 || s._stuck)
+      .filter(s => s._done)
       .sort((a, b) => parseFloat(b.totalAmount || 0) - parseFloat(a.totalAmount || 0));
 
     return { activeStreams: active, completedStreams: completed };
