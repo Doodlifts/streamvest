@@ -9,7 +9,7 @@ import './App.css';
 
 // Initialize WalletConnect for mobile wallet support
 // Get a project ID at https://cloud.walletconnect.com
-const WC_PROJECT_ID = '048a39de68b9eab4dba498855d3a1777';
+const WC_PROJECT_ID = 'ca6838a6-6a1c-4819-b672-3ccdc1d5705e';
 
 initWc({
   projectId: WC_PROJECT_ID,
