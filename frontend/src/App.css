@@ -2819,6 +2819,22 @@ a:hover {
   animation: float 3s ease-in-out infinite;
 }
 
+.nft-preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.nft-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: rgba(0, 225, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
 @media (max-width: 768px) {
   .nft-svg-container,
   .nft-display {

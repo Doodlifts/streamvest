@@ -981,8 +981,11 @@ function StreamDetailView({ user, streamId, onBack }) {
         </div>
 
         {svg && (
-          <div className="nft-svg-container">
-            <div className="nft-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div className="nft-preview-wrapper">
+            <div className="nft-svg-container">
+              <div className="nft-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+            </div>
+            <div className="nft-label">Fully onchain dynamic NFT</div>
           </div>
         )}
       </div>
@@ -1842,7 +1845,7 @@ export default function App() {
     <div className={`app ${loading ? 'app-loading' : ''}`}>
       {loading && <Preloader onComplete={() => setLoading(false)} />}
       <GrainOverlay />
-      <CustomCursor />
+      {!isConnected && <CustomCursor />}
       <Header
         user={user}
         view={view}
