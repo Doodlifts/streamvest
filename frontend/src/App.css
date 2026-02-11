@@ -3094,16 +3094,26 @@ a:hover {
   color: var(--void-black);
 }
 
-.loading,
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 2rem;
+  color: var(--ghost-gray);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  animation: loadingPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 .spinner {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--flow-cyan);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  will-change: transform;
+  display: none;
 }
 
 .grain-overlay {
