@@ -1,32 +1,20 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import * as fcl from '@onflow/fcl';
-
-// ────────────────────────────────────────────────────────────
-//  FCL Configuration
-// ────────────────────────────────────────────────────────────
-
-fcl.config()
-  .put("flow.network", "mainnet")
-  .put("accessNode.api", "https://rest-mainnet.onflow.org")
-  .put("discovery.wallet", "https://fcl-discovery.onflow.org/authn")
-  .put("discovery.authn.endpoint", "https://fcl-discovery.onflow.org/api/authn")
-  .put("app.detail.title", "StreamVest")
-  .put("app.detail.icon", "https://i.imgur.com/YbFxBJQ.png")
-  .put("0xStreamVest", "0x5ec90e3dcf0067c4")
-  .put("0xStreamVestSchedulerV2", "0x5ec90e3dcf0067c4")
-  .put("0xNonFungibleToken", "0x1d7e57aa55817448")
-  .put("0xMetadataViews", "0x1d7e57aa55817448")
-  .put("0xFungibleToken", "0xf233dcee88fe0abe")
-  .put("0xFlowToken", "0x1654653399040a61")
-  .put("0xFlowTransactionScheduler", "0xe467b9dd11fa00df");
+import React, { useState, useMemo } from 'react';
+import {
+  useFlowCurrentUser,
+  useFlowQuery,
+  useFlowMutate,
+  useFlowTransactionStatus,
+} from '@onflow/react-sdk';
 
 // ────────────────────────────────────────────────────────────
 //  Cadence Scripts & Transactions
+//  Using import "ContractName" syntax — addresses resolved
+//  automatically via flow.json passed to FlowProvider.
 // ────────────────────────────────────────────────────────────
 
 const GET_ALL_STREAMS = `
-import StreamVest from 0xStreamVest
-import NonFungibleToken from 0xNonFungibleToken
+import "StreamVest"
+import "NonFungibleToken"
 
 access(all) struct StreamInfo {
   access(all) let id: UInt64
@@ -72,8 +60,8 @@ access(all) fun main(owner: Address): [StreamInfo] {
 `;
 
 const GET_STREAM_STATUS = `
-import StreamVest from 0xStreamVest
-import NonFungibleToken from 0xNonFungibleToken
+import "StreamVest"
+import "NonFungibleToken"
 
 access(all) struct StreamStatus {
   access(all) let id: UInt64
@@ -132,9 +120,9 @@ access(all) fun main(owner: Address, nftID: UInt64): StreamStatus {
 `;
 
 const GET_NFT_DISPLAY = `
-import StreamVest from 0xStreamVest
-import NonFungibleToken from 0xNonFungibleToken
-import MetadataViews from 0xMetadataViews
+import "StreamVest"
+import "NonFungibleToken"
+import "MetadataViews"
 
 access(all) struct NFTDisplay {
   access(all) let id: UInt64
@@ -170,12 +158,12 @@ access(all) fun main(owner: Address, nftID: UInt64): NFTDisplay {
 `;
 
 const MINT_AND_SCHEDULE = `
-import StreamVest from 0xStreamVest
-import StreamVestSchedulerV2 from 0xStreamVestSchedulerV2
-import NonFungibleToken from 0xNonFungibleToken
-import FungibleToken from 0xFungibleToken
-import FlowToken from 0xFlowToken
-import FlowTransactionScheduler from 0xFlowTransactionScheduler
+import "StreamVest"
+import "StreamVestSchedulerV2"
+import "NonFungibleToken"
+import "FungibleToken"
+import "FlowToken"
+import "FlowTransactionScheduler"
 
 transaction(
   amount: UFix64,
@@ -323,99 +311,6 @@ function toFixedCadence(val) {
 }
 
 // ────────────────────────────────────────────────────────────
-//  Hooks
-// ────────────────────────────────────────────────────────────
-
-function useCurrentUser() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    const unsub = fcl.currentUser.subscribe(setUser);
-    return unsub;
-  }, []);
-
-  const connect = useCallback(() => fcl.authenticate(), []);
-  const disconnect = useCallback(() => fcl.unauthenticate(), []);
-
-  return { user, connect, disconnect };
-}
-
-function useStreams(address) {
-  const [streams, setStreams] = useState(null);
-  const [error, setError] = useState(null);
-
-  const fetchStreams = useCallback(async () => {
-    if (!address) return;
-    try {
-      const result = await fcl.query({
-        cadence: GET_ALL_STREAMS,
-        args: (arg, t) => [arg(address, t.Address)],
-      });
-      setStreams(result || []);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to fetch streams:', err);
-      setError(err.message);
-      if (streams === null) setStreams([]);
-    }
-  }, [address]);
-
-  useEffect(() => {
-    fetchStreams();
-    const interval = setInterval(fetchStreams, 15000);
-    return () => clearInterval(interval);
-  }, [fetchStreams]);
-
-  return { streams, error, refresh: fetchStreams };
-}
-
-function useStreamDetail(address, streamId) {
-  const [detail, setDetail] = useState(null);
-  const [svg, setSvg] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!address || streamId == null) return;
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const [statusResult, displayResult] = await Promise.all([
-          fcl.query({
-            cadence: GET_STREAM_STATUS,
-            args: (arg, t) => [
-              arg(address, t.Address),
-              arg(String(streamId), t.UInt64),
-            ],
-          }),
-          fcl.query({
-            cadence: GET_NFT_DISPLAY,
-            args: (arg, t) => [
-              arg(address, t.Address),
-              arg(String(streamId), t.UInt64),
-            ],
-          }),
-        ]);
-        if (!cancelled) {
-          setDetail(statusResult);
-          setSvg(displayResult?.rawSVG || null);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load stream detail:', err);
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    const interval = setInterval(load, 10000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [address, streamId]);
-
-  return { detail, svg, loading };
-}
-
-// ────────────────────────────────────────────────────────────
 //  Components
 // ────────────────────────────────────────────────────────────
 
@@ -428,7 +323,7 @@ function LogoMark() {
   );
 }
 
-function Header({ user, view, setView, connect, disconnect }) {
+function Header({ user, view, setView, authenticate, unauthenticate }) {
   return (
     <header className="header">
       <div className="header-left">
@@ -454,12 +349,12 @@ function Header({ user, view, setView, connect, disconnect }) {
         )}
       </div>
       {user?.addr ? (
-        <button className="wallet-btn" onClick={disconnect} title="Disconnect wallet">
+        <button className="wallet-btn" onClick={unauthenticate} title="Disconnect wallet">
           <span className="wallet-dot" />
           {formatAddr(user.addr)}
         </button>
       ) : (
-        <button className="wallet-btn wallet-btn-connect" onClick={connect}>
+        <button className="wallet-btn wallet-btn-connect" onClick={authenticate}>
           Connect Wallet
         </button>
       )}
@@ -468,7 +363,11 @@ function Header({ user, view, setView, connect, disconnect }) {
 }
 
 function Dashboard({ user, onSelectStream, onNavigateCreate }) {
-  const { streams, refresh } = useStreams(user.addr);
+  const { data: streams, isLoading } = useFlowQuery({
+    cadence: GET_ALL_STREAMS,
+    args: (arg, t) => [arg(user.addr, t.Address)],
+    query: { enabled: !!user?.addr, refetchInterval: 15000 },
+  });
 
   const stats = useMemo(() => {
     if (!streams) return { total: 0, locked: 0, active: 0 };
@@ -479,9 +378,11 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
     };
   }, [streams]);
 
-  if (streams === null) {
+  if (isLoading) {
     return <div className="loading"><div className="spinner" />Loading streams...</div>;
   }
+
+  const streamList = streams || [];
 
   return (
     <>
@@ -507,7 +408,7 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
         <span className="section-title">Streams</span>
       </div>
 
-      {streams.length === 0 ? (
+      {streamList.length === 0 ? (
         <div className="empty">
           <div className="empty-title">No streams yet</div>
           <div className="empty-desc">Create your first streaming vest to get started.</div>
@@ -515,7 +416,7 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
         </div>
       ) : (
         <div className="stream-list">
-          {streams.map(stream => {
+          {streamList.map(stream => {
             const pct = parseFloat(stream.totalAmount) > 0
               ? (parseFloat(stream.totalStreamed) / parseFloat(stream.totalAmount)) * 100
               : 0;
@@ -548,7 +449,26 @@ function Dashboard({ user, onSelectStream, onNavigateCreate }) {
 }
 
 function StreamDetailView({ user, streamId, onBack }) {
-  const { detail, svg, loading } = useStreamDetail(user.addr, streamId);
+  const { data: detail, isLoading: loadingStatus } = useFlowQuery({
+    cadence: GET_STREAM_STATUS,
+    args: (arg, t) => [
+      arg(user.addr, t.Address),
+      arg(String(streamId), t.UInt64),
+    ],
+    query: { enabled: !!user?.addr && streamId != null, refetchInterval: 10000 },
+  });
+
+  const { data: display, isLoading: loadingSvg } = useFlowQuery({
+    cadence: GET_NFT_DISPLAY,
+    args: (arg, t) => [
+      arg(user.addr, t.Address),
+      arg(String(streamId), t.UInt64),
+    ],
+    query: { enabled: !!user?.addr && streamId != null, refetchInterval: 10000 },
+  });
+
+  const loading = loadingStatus || loadingSvg;
+  const svg = display?.rawSVG || null;
 
   if (loading) {
     return <div className="loading"><div className="spinner" />Loading stream...</div>;
@@ -644,7 +564,9 @@ function CreateStream({ user, onSuccess }) {
   const [destination, setDestination] = useState('');
   const [durIdx, setDurIdx] = useState(null);
   const [intIdx, setIntIdx] = useState(null);
-  const [txStatus, setTxStatus] = useState(null);
+
+  const { mutate, data: txId, isPending } = useFlowMutate();
+  const { transactionStatus } = useFlowTransactionStatus({ id: txId });
 
   const durationSec = durIdx !== null ? DURATION_PRESETS[durIdx].seconds : 0;
   const intervalSec = intIdx !== null ? INTERVAL_PRESETS[intIdx].seconds : 0;
@@ -663,37 +585,38 @@ function CreateStream({ user, onSuccess }) {
     intervalSec > 0 &&
     intervalSec <= durationSec;
 
-  const isBusy = txStatus === 'sending' || txStatus === 'confirming';
+  const isSealed = transactionStatus?.statusString === 'SEALED';
+  const isErrored = transactionStatus?.errorMessage;
+  const isBusy = isPending || (txId && !isSealed && !isErrored);
 
-  const handleSubmit = async () => {
-    if (!isValid || isBusy) return;
-    setTxStatus('sending');
-
-    try {
-      const txId = await fcl.mutate({
-        cadence: MINT_AND_SCHEDULE,
-        args: (arg, t) => [
-          arg(toFixedCadence(amountNum), t.UFix64),
-          arg(normalizeAddress(destination), t.Address),
-          arg(toFixedCadence(durationSec), t.UFix64),
-          arg(toFixedCadence(intervalSec), t.UFix64),
-          arg(toFixedCadence(totalFees), t.UFix64),
-        ],
-        proposer: fcl.currentUser,
-        payer: fcl.currentUser,
-        authorizations: [fcl.currentUser],
-        limit: 999,
-      });
-
-      setTxStatus('confirming');
-      await fcl.tx(txId).onceSealed();
-      setTxStatus({ success: txId });
-      setTimeout(() => onSuccess(), 3000);
-    } catch (err) {
-      console.error('Transaction failed:', err);
-      setTxStatus({ error: err.message || 'Transaction failed' });
+  // Navigate to dashboard after sealing
+  React.useEffect(() => {
+    if (isSealed) {
+      const timer = setTimeout(() => onSuccess(), 3000);
+      return () => clearTimeout(timer);
     }
+  }, [isSealed, onSuccess]);
+
+  const handleSubmit = () => {
+    if (!isValid || isBusy) return;
+    mutate({
+      cadence: MINT_AND_SCHEDULE,
+      args: (arg, t) => [
+        arg(toFixedCadence(amountNum), t.UFix64),
+        arg(normalizeAddress(destination), t.Address),
+        arg(toFixedCadence(durationSec), t.UFix64),
+        arg(toFixedCadence(intervalSec), t.UFix64),
+        arg(toFixedCadence(totalFees), t.UFix64),
+      ],
+      limit: 999,
+    });
   };
+
+  const statusLabel = isPending
+    ? 'Waiting for approval...'
+    : txId && !isSealed && !isErrored
+    ? 'Confirming on-chain...'
+    : 'Create Stream';
 
   return (
     <div className="form-card">
@@ -790,18 +713,14 @@ function CreateStream({ user, onSuccess }) {
         disabled={!isValid || isBusy}
         onClick={handleSubmit}
       >
-        {txStatus === 'sending'
-          ? 'Waiting for approval...'
-          : txStatus === 'confirming'
-          ? 'Confirming on-chain...'
-          : 'Create Stream'}
+        {statusLabel}
       </button>
 
-      {txStatus?.success && (
+      {isSealed && (
         <div className="tx-status tx-success">
           Stream created!{' '}
           <a
-            href={`https://www.flowscan.io/tx/${txStatus.success}`}
+            href={`https://www.flowscan.io/tx/${txId}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -810,8 +729,8 @@ function CreateStream({ user, onSuccess }) {
         </div>
       )}
 
-      {txStatus?.error && (
-        <div className="tx-status tx-error">{txStatus.error}</div>
+      {isErrored && (
+        <div className="tx-status tx-error">{transactionStatus.errorMessage}</div>
       )}
     </div>
   );
@@ -864,7 +783,7 @@ function LandingPage({ onConnect }) {
 // ────────────────────────────────────────────────────────────
 
 export default function App() {
-  const { user, connect, disconnect } = useCurrentUser();
+  const { user, authenticate, unauthenticate } = useFlowCurrentUser();
   const [view, setView] = useState('dashboard');
   const [selectedStream, setSelectedStream] = useState(null);
 
@@ -890,12 +809,12 @@ export default function App() {
         user={user}
         view={view}
         setView={(v) => { setView(v); setSelectedStream(null); }}
-        connect={connect}
-        disconnect={disconnect}
+        authenticate={authenticate}
+        unauthenticate={unauthenticate}
       />
       <main className="main">
         {!isConnected ? (
-          <LandingPage onConnect={connect} />
+          <LandingPage onConnect={authenticate} />
         ) : view === 'dashboard' ? (
           <Dashboard
             user={user}
