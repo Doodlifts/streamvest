@@ -1230,76 +1230,153 @@ function CreateStream({ user, onSuccess }) {
 function LandingPage({ onConnect }) {
   useSmoothScroll();
 
+  // GSAP scroll animations for sections
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Animate mechanic steps on scroll
+      gsap.utils.toArray('.mechanic-step').forEach((step, i) => {
+        gsap.from(step, {
+          opacity: 0,
+          y: 60,
+          duration: 0.8,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: step,
+            start: 'top 85%',
+            toggleActions: 'play none none none',
+          },
+        });
+      });
+
+      // Animate architecture items on scroll
+      gsap.utils.toArray('.architecture-item').forEach((item) => {
+        gsap.from(item, {
+          opacity: 0,
+          x: -30,
+          duration: 0.6,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: item,
+            start: 'top 85%',
+            toggleActions: 'play none none none',
+          },
+        });
+      });
+    });
+
+    return () => ctx.revert();
+  }, []);
+
   return (
-    <div className="landing">
+    <div className="landing-page">
+      {/* ═══ HERO ═══ */}
       <section className="hero-section">
-        <div className="hero-content">
-          <TextReveal tag="h1" className="hero-title">
-            Streaming
-          </TextReveal>
-          <TextReveal tag="h1" className="hero-title hero-title-accent" delay={0.3}>
-            Vests
-          </TextReveal>
-          <p className="hero-subtitle">
-            Mint your vesting schedule as a sovereign digital contract.
-            Tokens flow like clockwork, governed by immutable Flow runtime,
-            not human intermediaries.
-          </p>
-          <MagneticButton className="hero-cta" onClick={onConnect}>
-            Connect Wallet
-          </MagneticButton>
+        <div className="hero-atmosphere">
+          <div className="hero-glow-orb hero-glow-cyan" />
+          <div className="hero-glow-orb hero-glow-violet" />
         </div>
-        <div className="hero-canvas">
-          <ErrorBoundary fallback={<div className="hero-fallback" />}>
-            <HeroVisualization />
-          </ErrorBoundary>
-        </div>
-        <ScrollIndicator />
-      </section>
 
-      <section className="mechanics-section">
-        <h2 className="section-heading">How It Works</h2>
-        <div className="mechanics-grid">
-          <div className="mechanic-card">
-            <span className="mechanic-number">01</span>
-            <h3 className="mechanic-title">Initialize Stream</h3>
-            <p className="mechanic-desc">
-              Deposit FLOW. Define cadence. The protocol handles the rest.
+        <div className="hero-grid">
+          <div className="hero-text">
+            <h1 className="hero-headline">
+              <span className="hero-line">
+                <TextReveal tag="span" className="hero-word">Streaming</TextReveal>
+              </span>
+              <span className="hero-line">
+                <TextReveal tag="span" className="hero-word hero-word-accent" delay={0.15}>Vests</TextReveal>
+              </span>
+            </h1>
+
+            <p className="hero-subtitle">
+              Mint your vesting schedule as a sovereign digital contract.
+              Tokens flow like clockwork, governed by immutable Flow runtime,
+              not human intermediaries.
             </p>
+
+            <div className="hero-actions">
+              <button className="hero-connect-btn" onClick={onConnect}>
+                <span className="hero-connect-text">Connect Wallet</span>
+                <span className="hero-connect-fill" />
+              </button>
+              <a href="#how-it-works" className="hero-learn-link">
+                How it works
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M7 3v8m0 0l-3-3m3 3l3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            </div>
           </div>
-          <div className="mechanic-card">
-            <span className="mechanic-number">02</span>
-            <h3 className="mechanic-title">Autonomous Distribution</h3>
-            <p className="mechanic-desc">
-              Every interval, micro-transactions execute with atomic precision.
-              No gas wars. No missed claims.
-            </p>
+
+          <div className="hero-visual">
+            <ErrorBoundary fallback={<div className="hero-fallback" />}>
+              <HeroVisualization />
+            </ErrorBoundary>
           </div>
-          <div className="mechanic-card">
-            <span className="mechanic-number">03</span>
-            <h3 className="mechanic-title">Sovereign Tracking</h3>
-            <p className="mechanic-desc">
-              Monitor progress in real-time. Every delivery is transparent,
-              verifiable, and immutable.
-            </p>
-          </div>
+        </div>
+
+        <div className="hero-scroll-indicator">
+          <span className="hero-scroll-label">Scroll</span>
+          <div className="hero-scroll-line" />
         </div>
       </section>
 
+      {/* ═══ HOW IT WORKS ═══ */}
+      <section className="mechanics-section" id="how-it-works">
+        <div className="mechanics-container">
+          <span className="section-eyebrow">How It Works</span>
+
+          <div className="mechanics-editorial">
+            {[
+              {
+                num: '01',
+                title: 'Initialize Stream',
+                desc: 'Deposit FLOW. Define cadence. The protocol handles the rest.',
+              },
+              {
+                num: '02',
+                title: 'Autonomous Distribution',
+                desc: 'Every interval, micro-transactions execute with atomic precision. No gas wars. No missed claims.',
+              },
+              {
+                num: '03',
+                title: 'Sovereign Tracking',
+                desc: 'Monitor progress in real-time. Every delivery is transparent, verifiable, and immutable.',
+              },
+            ].map((step, i) => (
+              <div key={i} className="mechanic-step">
+                <div className="mechanic-step-left">
+                  <span className="mechanic-ghost-num">{step.num}</span>
+                  <h3 className="mechanic-step-title">{step.title}</h3>
+                </div>
+                <div className="mechanic-step-right">
+                  <div className="mechanic-step-line" />
+                  <p className="mechanic-step-desc">{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══ UNDER THE HOOD ═══ */}
       <section className="architecture-section">
-        <h2 className="section-heading">Under the Hood</h2>
-        <div className="architecture-list">
-          {[
-            { title: 'NFT-Based Streams', detail: 'Each vesting schedule is a unique NFT with embedded state, progress tracking, and on-chain SVG visualization.' },
-            { title: 'Flow Transaction Scheduler', detail: 'Leverages Flow\'s native FlowTransactionScheduler for autonomous, gas-efficient stream execution without external keepers.' },
-            { title: 'Atomic Delivery', detail: 'Token transfers execute as atomic on-chain transactions. No partial states, no race conditions, no manual intervention.' },
-            { title: 'Composable Primitive', detail: 'StreamVest NFTs implement MetadataViews and standard interfaces, making them composable with any Flow ecosystem tool.' },
-          ].map((item, i) => (
-            <ArchitectureItem key={i} title={item.title} detail={item.detail} index={i} />
-          ))}
+        <div className="architecture-container">
+          <span className="section-eyebrow">Under the Hood</span>
+
+          <div className="architecture-list">
+            {[
+              { title: 'NFT-Based Streams', detail: 'Each vesting schedule is a unique NFT with embedded state, progress tracking, and on-chain SVG visualization.' },
+              { title: 'Flow Transaction Scheduler', detail: 'Leverages Flow\'s native FlowTransactionScheduler for autonomous, gas-efficient stream execution without external keepers.' },
+              { title: 'Atomic Delivery', detail: 'Token transfers execute as atomic on-chain transactions. No partial states, no race conditions, no manual intervention.' },
+              { title: 'Composable Primitive', detail: 'StreamVest NFTs implement MetadataViews and standard interfaces, making them composable with any Flow ecosystem tool.' },
+            ].map((item, i) => (
+              <ArchitectureItem key={i} title={item.title} detail={item.detail} index={i} />
+            ))}
+          </div>
         </div>
       </section>
 
+      {/* ═══ FOOTER CTA ═══ */}
       <section className="footer-section">
         <div className="footer-glow" />
         <div className="footer-cta-container">
@@ -1307,9 +1384,10 @@ function LandingPage({ onConnect }) {
             Enter the Stream
           </h2>
           <p className="footer-cta-sub">Autonomous token vesting on Flow</p>
-          <MagneticButton className="footer-cta-btn btn-primary" onClick={onConnect}>
-            Connect Wallet
-          </MagneticButton>
+          <button className="hero-connect-btn footer-connect" onClick={onConnect}>
+            <span className="hero-connect-text">Connect Wallet</span>
+            <span className="hero-connect-fill" />
+          </button>
         </div>
         <div className="footer-meta">
           <div className="footer-contract">
@@ -1318,10 +1396,12 @@ function LandingPage({ onConnect }) {
               className="footer-contract-addr magnetic"
               onClick={(e) => {
                 navigator.clipboard.writeText('0x5ec90e3dcf0067c4');
-                const btn = e.currentTarget;
-                const original = btn.querySelector('.copy-icon').textContent;
-                btn.querySelector('.copy-icon').textContent = '✓';
-                setTimeout(() => { btn.querySelector('.copy-icon').textContent = original; }, 2000);
+                const icon = e.currentTarget.querySelector('.copy-icon');
+                if (icon) {
+                  const orig = icon.textContent;
+                  icon.textContent = '✓';
+                  setTimeout(() => { icon.textContent = orig; }, 2000);
+                }
               }}
             >
               0x5ec90e3dcf0067c4
